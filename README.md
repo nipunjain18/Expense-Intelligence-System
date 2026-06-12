@@ -1,35 +1,58 @@
 # Expense Intelligence System
 
-A Personal Finance Intelligence System built with Python.
+A Personal Finance Management System built with Python.
 
-## Features Planned
+The goal of this project is to learn real software development by building a practical application for managing personal finances.
 
-- Multi User Support
-- Multiple Accounts
-- Income Tracking
-- Expense Tracking
-- Money Transfer Between Accounts
-- Debt Management
-- Budget Tracking
-- Financial Analytics
-- Smart Insights
+## Features
+
+### Account Management
+
+* Multiple accounts
+* Cash, UPI, Bank Accounts, Investment Accounts
+* Account balance tracking
+
+### Category Management
+
+* Custom categories
+* Food, Shopping, Transport, Gym, etc.
+
+### Transaction Management
+
+* Income tracking
+* Expense tracking
+* Transaction history
+
+### Transfer Management
+
+* Transfer money between accounts
+* Transfers do not count as expenses
+
+### Debt Tracking
+
+* Money lent
+* Money borrowed
+* Pending and paid status
+
+### Dashboard
+
+* Total income
+* Total expenses
+* Net savings
+* Account balances
+* Debt summary
 
 ## Tech Stack
 
-- Python
-- JSON Storage
+* Python
+* JSON Storage
+* Git
+* GitHub
 
-## Version 1 Features
+## Project Status
 
-- Create User
-- Add Account
-- Add Category
-- Add Income
-- Add Expense
-- Transfer Money
-- Debt Tracking
-- Dashboard
+Current Phase:
+Planning & Development
 
-## Status
-
-Planning Phase
+Next Feature:
+Account Management
