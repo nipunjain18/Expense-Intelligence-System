@@ -69,8 +69,80 @@ Allow users to create financial accounts (Cash, Bank, UPI, Investment, Credit Ca
 
 ## Future Improvements
 
-- View, edit, and delete accounts
+- ~~View~~, edit, and delete accounts
 - Confirmation prompt before saving ("Are you sure?")
 - UUID-based IDs to avoid gaps after deletions
 - Backup `accounts.json` before overwriting
 - Move account types to a config file
+
+---
+---
+
+# Feature 2: View Accounts
+
+## Purpose
+
+Allow users to view all accounts stored in `accounts.json` in a formatted CLI table with a summary section. This feature is read-only — it never modifies account data.
+
+---
+
+## Business Rules
+
+- Viewing accounts must never modify `accounts.json`
+- If no accounts exist, display "No accounts found." — no crash, no empty table
+- Accounts are displayed in ascending ID order (ID = creation order)
+- Summary (total count + total balance) is calculated dynamically at display time
+- Balances are displayed in Indian Rupee format with 2 decimal places
+
+---
+
+## Functions
+
+| Function | Purpose | Why Needed |
+|----------|---------|------------|
+| `format_currency(amount)` | Convert a number to `₹15,000.00` format | Same formatting needed in summary and every table row — DRY |
+| `display_accounts_summary(accounts)` | Print total count and combined balance | Separates summary logic from table display |
+| `view_accounts()` | Orchestrate: load → empty check → sort → summary → table | Same orchestrator pattern as `add_account()` |
+
+---
+
+## Flow
+
+1. `main()` shows menu with "View Accounts" as option 2
+2. User picks "View Accounts" → `view_accounts()` is called
+3. Accounts are loaded from JSON via `load_accounts()` (reused from Feature 1)
+4. If the list is empty → print "No accounts found." and return
+5. Accounts are sorted by ID (ascending) using `sorted()` — returns a new list, original untouched
+6. `display_accounts_summary()` prints total count and total balance
+7. Table header is built, separator width is computed from header length
+8. Loop prints each account row with formatted currency
+9. Control returns to the menu
+
+---
+
+## Key Learnings
+
+**Python concepts:**
+- `f"₹{amount:,.2f}"` — format spec with `,` for thousands separator and `.2f` for 2 decimal places
+- `f"{'ID':<6}"` — f-string with `:<` for left-alignment and `:>` for right-alignment in fixed-width columns
+- Single quotes inside double-quoted f-strings — outer and inner quotes must differ for compatibility
+- `sorted(list, key=lambda x: x["field"])` — returns a new sorted list without modifying the original
+- `lambda` — one-line anonymous function, used here to tell `sorted()` what to sort by
+- `sum(x["field"] for x in list)` — generator expression inside `sum()` for memory-efficient totals
+- `len(string)` — returns character count, used to compute dynamic separator width
+- `sys.stdout.reconfigure(encoding="utf-8")` — ensures non-ASCII characters (₹) display correctly on Windows
+
+**Software development concepts:**
+- Read-only operations should never call write functions (`save_accounts` is never called)
+- `sorted()` vs `.sort()` — `sorted()` is the safe choice for read-only features because it doesn't mutate
+- DRY principle — `format_currency()` extracted because the same format appears in multiple places
+- Avoiding magic numbers — separator width derived from `len(header)` instead of hardcoded `64`
+- Storing intermediate results in variables (`header`) can serve dual purposes (display + computation)
+
+---
+
+## Known Limitations (V1)
+
+- Long account names (>25 chars) may misalign table columns — won't crash, just looks off
+- Feature 1 and Feature 2 use different balance formats (`25000.0` vs `₹25,000.00`)
+- Indian numbering system (lakh/crore: `₹15,00,000`) not implemented — uses standard `₹1,500,000`
