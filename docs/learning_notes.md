@@ -146,3 +146,108 @@ Allow users to view all accounts stored in `accounts.json` in a formatted CLI ta
 - Long account names (>25 chars) may misalign table columns — won't crash, just looks off
 - Feature 1 and Feature 2 use different balance formats (`25000.0` vs `₹25,000.00`)
 - Indian numbering system (lakh/crore: `₹15,00,000`) not implemented — uses standard `₹1,500,000`
+
+---
+---
+
+# Feature 3: Add Transaction
+
+## Purpose
+
+Allow users to record Income and Expense transactions against a selected account. It validates inputs, updates account balances, and saves transaction and account data to separate JSON files.
+
+---
+
+## Business Rules
+
+- Account must exist before creating a transaction
+- Transaction type must be Income or Expense
+- Amount must be greater than zero
+- Expense amount cannot exceed account balance
+- Description cannot be empty
+- Transaction ID is auto-generated (highest existing ID + 1, starting from 1)
+- Transaction date is automatically generated using today's date
+- Account balance must be updated and saved after transaction
+- Transactions are saved in `transactions.json`
+- Updated balances are saved in `accounts.json`
+- If an account has a balance of exactly zero, expenses are blocked immediately
+
+---
+
+## Functions
+
+| Function | Purpose | Why Needed |
+|----------|---------|------------|
+| `load_transactions()` | Read transactions from JSON file into a list | Every operation needs current transaction data — ID generation, list append |
+| `save_transactions(transactions)` | Write the full transactions list back to JSON | Centralizes file writing for transaction records persistence |
+| `generate_transaction_id(transactions)` | Return the next unique ID | Transaction IDs must auto-increment without user input |
+| `select_account(accounts)` | Show accounts with balances and validate selection | Links the transaction to a specific account; reusable for transfers |
+| `get_valid_transaction_type()` | Show allowed types and validate choice | Rejects invalid input in a loop until Income/Expense is chosen |
+| `get_valid_amount(transaction_type, balance)` | Prompt for positive number; checks balance for expenses | Rejects invalid or insufficient amounts dynamically based on type |
+| `add_transaction()` | Orchestrate the full transaction workflow | Coordinates load → validate → calculate → save in one place |
+
+---
+
+## Flow
+
+1. `main()` shows menu with "Add Transaction" as option 3
+2. User picks "Add Transaction" → `add_transaction()` is called
+3. Accounts are loaded; if none exist, print message and exit
+4. Transactions are loaded via `load_transactions()`
+5. User selects an account via `select_account()`
+6. User picks transaction type via `get_valid_transaction_type()`
+7. If type is Expense and account balance is zero, print message and exit
+8. User enters transaction amount via `get_valid_amount()`
+9. User enters description → rejected if empty
+10. `old_balance` is saved; `new_balance` is calculated and rounded to 2 decimals
+11. Transaction record is created and appended to transaction list
+12. Transactions are saved to `transactions.json` and updated accounts to `accounts.json`
+13. Confirmation with details (previous vs new balance) is printed
+
+---
+
+## Key Learnings
+
+**Python concepts:**
+- `enumerate()` — returns index and item from a list, starting menu numbering at 1
+- `sorted()` — returns a sorted copy of a list using a key, keeping original data order intact
+- `lambda` — one-line anonymous function, used as a sort key for accounts
+- `float()` — converts input strings into decimal numbers for currency arithmetic
+- `try/except` — catches type conversion errors from invalid user input without crashing
+- `round()` — rounds floats to 2 decimal places to prevent floating-point calculation errors
+- List append — adds the new transaction dictionary to the existing transactions list
+- Dictionary creation — builds the structured transaction record with six fields
+- Function parameters — passing variables (type, balance) into input functions for custom validation
+- Passing by reference — dictionary changes within functions update the parent list directly
+
+**Software development concepts:**
+- Single Responsibility Principle — separating logic into small helper functions with one task each
+- Reusability — creating generic validation and selection functions for reuse in other features
+- Separation of Concerns — separating data loading/saving from UI prompts and mathematical calculations
+- Data Relationships — using `account_id` as a foreign key to link transactions to accounts
+- Referential Integrity — ensuring transactions are only linked to valid, existing accounts
+- Guard Clauses — exiting functions early if preconditions (like existing accounts) are not met
+- Input Validation — looping indefinitely until valid data is entered to protect system integrity
+- Data Persistence — saving data to separate JSON files to ensure state survives app restart
+
+---
+
+## Known Limitations (V1)
+
+- Cannot view transactions
+- Cannot edit transactions (no balance reversal logic)
+- Cannot delete transactions (no balance reversal logic)
+- No transaction categories (all transactions are uncategorized)
+- No transfers between accounts
+- No reports or summaries of transaction history
+
+---
+
+## Future Improvements
+
+- Transaction categories (e.g., Food, Travel)
+- View transactions in a tabular format
+- Edit and delete transaction options
+- Support transfers between accounts
+- Transaction search and date filtering
+- Monthly or category-wise expense reports

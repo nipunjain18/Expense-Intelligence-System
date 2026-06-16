@@ -11,6 +11,9 @@ ACCOUNTS_FILE = os.path.join(DATA_DIR, "accounts.json")
 
 VALID_ACCOUNT_TYPES = ["Cash", "Bank", "UPI", "Investment", "Credit Card"]
 
+TRANSACTIONS_FILE = os.path.join(DATA_DIR, "transactions.json")
+VALID_TRANSACTION_TYPES = ["Income", "Expense"]
+
 
 def load_accounts():
     """Return all accounts from the JSON file, or [] if none exist."""
@@ -44,6 +47,40 @@ def generate_account_id(accounts):
         return 1
 
     return max(account["account_id"] for account in accounts) + 1
+
+
+def load_transactions():
+    """Return all transactions from the JSON file, or [] if none exist."""
+
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
+
+    if not os.path.exists(TRANSACTIONS_FILE):
+        return []
+
+    with open(TRANSACTIONS_FILE, "r") as file:
+        content = file.read()
+
+    if not content.strip():
+        return []
+
+    return json.loads(content)
+
+
+def save_transactions(transactions):
+    """Write the full transactions list to transactions.json."""
+
+    with open(TRANSACTIONS_FILE, "w") as file:
+        json.dump(transactions, file, indent=4)
+
+
+def generate_transaction_id(transactions):
+    """Return the next transaction ID (highest existing + 1, starting from 1)."""
+
+    if len(transactions) == 0:
+        return 1
+
+    return max(transaction["transaction_id"] for transaction in transactions) + 1
 
 
 def is_duplicate_name(accounts, name):
@@ -96,6 +133,77 @@ def get_valid_balance():
             continue
 
         return balance
+
+
+def select_account(accounts):
+    """Prompt the user to pick an account from a numbered list."""
+
+    sorted_accounts = sorted(accounts, key=lambda a: a["account_id"])
+
+    print("\nSelect an account:")
+    for i, account in enumerate(sorted_accounts, start=1):
+        print(f"  {i}. {account['name']} ({format_currency(account['balance'])})")
+
+    while True:
+        choice = input("Enter the number of your account: ").strip()
+
+        if not choice.isdigit():
+            print("Please enter a valid number.")
+            continue
+
+        choice_number = int(choice)
+
+        if choice_number < 1 or choice_number > len(sorted_accounts):
+            print(f"Please enter a number between 1 and {len(sorted_accounts)}.")
+            continue
+
+        return sorted_accounts[choice_number - 1]
+
+
+def get_valid_transaction_type():
+    """Prompt the user to pick a transaction type from the allowed list."""
+
+    print("\nTransaction Types:")
+    for i, transaction_type in enumerate(VALID_TRANSACTION_TYPES, start=1):
+        print(f"  {i}. {transaction_type}")
+
+    while True:
+        choice = input("Enter the number of your transaction type: ").strip()
+
+        if not choice.isdigit():
+            print("Please enter a valid number.")
+            continue
+
+        choice_number = int(choice)
+
+        if choice_number < 1 or choice_number > len(VALID_TRANSACTION_TYPES):
+            print(f"Please enter a number between 1 and {len(VALID_TRANSACTION_TYPES)}.")
+            continue
+
+        return VALID_TRANSACTION_TYPES[choice_number - 1]
+
+
+def get_valid_amount(transaction_type, balance):
+    """Prompt the user for a valid transaction amount."""
+
+    while True:
+        amount_input = input("Enter amount: ").strip()
+
+        try:
+            amount = float(amount_input)
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+            continue
+
+        if amount <= 0:
+            print("Amount must be greater than zero.")
+            continue
+
+        if transaction_type == "Expense" and amount > balance:
+            print("Insufficient balance.")
+            continue
+
+        return amount
 
 
 def add_account():
@@ -183,6 +291,70 @@ def view_accounts():
         )
 
 
+def add_transaction():
+    """Record a new income or expense transaction."""
+
+    print("\n--- Add Transaction ---")
+
+    accounts = load_accounts()
+
+    if len(accounts) == 0:
+        print("\nNo accounts found. Create an account first.")
+        return
+
+    transactions = load_transactions()
+
+    account = select_account(accounts)
+    transaction_type = get_valid_transaction_type()
+
+    if transaction_type == "Expense" and account["balance"] == 0:
+        print("\nThis account has no available balance for expenses.")
+        return
+
+    amount = get_valid_amount(transaction_type, account["balance"])
+
+    while True:
+        description = input("Enter description: ").strip()
+
+        if len(description) == 0:
+            print("Description cannot be empty.")
+            continue
+
+        break
+
+    old_balance = account["balance"]
+
+    if transaction_type == "Income":
+        new_balance = round(old_balance + amount, 2)
+    else:
+        new_balance = round(old_balance - amount, 2)
+
+    account["balance"] = new_balance
+
+    new_transaction = {
+        "transaction_id": generate_transaction_id(transactions),
+        "account_id": account["account_id"],
+        "type": transaction_type,
+        "amount": amount,
+        "description": description,
+        "date": str(date.today())
+    }
+
+    transactions.append(new_transaction)
+    save_transactions(transactions)
+    save_accounts(accounts)
+
+    print("\nTransaction recorded successfully!")
+    print(f"  ID:               {new_transaction['transaction_id']}")
+    print(f"  Account:          {account['name']}")
+    print(f"  Type:             {new_transaction['type']}")
+    print(f"  Amount:           {format_currency(new_transaction['amount'])}")
+    print(f"  Description:      {new_transaction['description']}")
+    print(f"  Date:             {new_transaction['date']}")
+    print(f"  Previous Balance: {format_currency(old_balance)}")
+    print(f"  New Balance:      {format_currency(new_balance)}")
+
+
 def main():
     """Main menu loop."""
 
@@ -194,19 +366,22 @@ def main():
         print("\n--- Main Menu ---")
         print("1. Add Account")
         print("2. View Accounts")
-        print("3. Exit")
+        print("3. Add Transaction")
+        print("4. Exit")
 
-        choice = input("Enter your choice (1-3): ").strip()
+        choice = input("Enter your choice (1-4): ").strip()
 
         if choice == "1":
             add_account()
         elif choice == "2":
             view_accounts()
         elif choice == "3":
+            add_transaction()
+        elif choice == "4":
             print("\nGoodbye! See you next time.")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 3.")
+            print("Invalid choice. Please enter a number between 1 and 4.")
 
 
 if __name__ == "__main__":
