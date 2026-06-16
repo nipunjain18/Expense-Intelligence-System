@@ -13,6 +13,7 @@ VALID_ACCOUNT_TYPES = ["Cash", "Bank", "UPI", "Investment", "Credit Card"]
 
 TRANSACTIONS_FILE = os.path.join(DATA_DIR, "transactions.json")
 VALID_TRANSACTION_TYPES = ["Income", "Expense"]
+REQUIRED_TRANSACTION_KEYS = {"transaction_id", "account_id", "type", "amount", "description", "date"}
 
 
 def load_accounts():
@@ -253,6 +254,70 @@ def format_currency(amount):
     return f"₹{amount:,.2f}"
 
 
+def format_transaction_amount(amount, transaction_type):
+    """Format amount with +/- sign and ₹ symbol. Example: 500, 'Expense' → '-₹500.00'"""
+
+    if transaction_type == "Income":
+        return f"+₹{amount:,.2f}"
+
+    return f"-₹{amount:,.2f}"
+
+
+def validate_transaction(transaction):
+    """Check if a single transaction record is valid for display."""
+
+    if not isinstance(transaction, dict):
+        return False
+
+    if not REQUIRED_TRANSACTION_KEYS.issubset(transaction.keys()):
+        return False
+
+    if transaction["type"] not in VALID_TRANSACTION_TYPES:
+        return False
+
+    if not isinstance(transaction["amount"], (int, float)):
+        return False
+
+    if not isinstance(transaction["description"], str) or not transaction["description"].strip():
+        return False
+
+    if not isinstance(transaction["date"], str) or not transaction["date"].strip():
+        return False
+
+    return True
+
+
+def get_account_name(account_id, accounts):
+    """Resolve an account_id to its name, or 'Deleted Account' if not found."""
+
+    for account in accounts:
+        if account["account_id"] == account_id:
+            return account["name"]
+
+    return "Deleted Account"
+
+
+def display_transaction_table(transactions, accounts):
+    """Print formatted transaction table with header and rows."""
+
+    header = f"  {'ID':<6}{'Date':<13}{'Type':<11}{'Account':<20}{'Amount':>15}  {'Description'}"
+    print(f"\n{header}")
+    print("  " + "-" * (len(header) - 2))
+
+    for transaction in transactions:
+        account_name = get_account_name(transaction["account_id"], accounts)
+        formatted_amount = format_transaction_amount(transaction["amount"], transaction["type"])
+
+        print(
+            f"  {transaction['transaction_id']:<6}"
+            f"{transaction['date']:<13}"
+            f"{transaction['type']:<11}"
+            f"{account_name:<20}"
+            f"{formatted_amount:>15}  "
+            f"{transaction['description']}"
+        )
+
+
 def display_accounts_summary(accounts):
     """Print account count and total balance."""
 
@@ -355,6 +420,59 @@ def add_transaction():
     print(f"  New Balance:      {format_currency(new_balance)}")
 
 
+def view_transactions():
+    """Display all transactions in a formatted table. Read-only."""
+
+    print("\n--- View Transactions ---")
+
+    transactions = load_transactions()
+
+    if len(transactions) == 0:
+        print("\nNo transactions found.")
+        print("Please add a transaction first.")
+        return
+
+    accounts = load_accounts()
+
+    valid_transactions = []
+    invalid_count = 0
+
+    for transaction in transactions:
+        if validate_transaction(transaction):
+            valid_transactions.append(transaction)
+        else:
+            invalid_count += 1
+
+    if invalid_count == 1:
+        print("\nSkipped 1 invalid transaction record.")
+    elif invalid_count > 1:
+        print(f"\nSkipped {invalid_count} invalid transaction records.")
+
+    if len(valid_transactions) == 0:
+        print("\nNo transactions found.")
+        print("Please add a transaction first.")
+        return
+
+    sorted_transactions = sorted(
+        valid_transactions,
+        key=lambda t: (t["date"], t["transaction_id"]),
+        reverse=True
+    )
+
+    display_transaction_table(sorted_transactions, accounts)
+
+    total_income = round(sum(
+        t["amount"] for t in valid_transactions if t["type"] == "Income"
+    ), 2)
+
+    total_expense = round(sum(
+        t["amount"] for t in valid_transactions if t["type"] == "Expense"
+    ), 2)
+
+    print(f"\n  Total Income  : {format_currency(total_income)}")
+    print(f"  Total Expense : {format_currency(total_expense)}")
+
+
 def main():
     """Main menu loop."""
 
@@ -367,9 +485,10 @@ def main():
         print("1. Add Account")
         print("2. View Accounts")
         print("3. Add Transaction")
-        print("4. Exit")
+        print("4. View Transactions")
+        print("5. Exit")
 
-        choice = input("Enter your choice (1-4): ").strip()
+        choice = input("Enter your choice (1-5): ").strip()
 
         if choice == "1":
             add_account()
@@ -378,10 +497,12 @@ def main():
         elif choice == "3":
             add_transaction()
         elif choice == "4":
+            view_transactions()
+        elif choice == "5":
             print("\nGoodbye! See you next time.")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 4.")
+            print("Invalid choice. Please enter a number between 1 and 5.")
 
 
 if __name__ == "__main__":

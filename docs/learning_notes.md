@@ -251,3 +251,113 @@ Allow users to record Income and Expense transactions against a selected account
 - Support transfers between accounts
 - Transaction search and date filtering
 - Monthly or category-wise expense reports
+
+---
+---
+
+# Feature 4: View Transactions
+
+## Purpose
+
+Allow users to view all historical transactions in a formatted CLI table with a financial summary. Users can track where money came from (Income) and where it was spent (Expense), and verify previously entered records. This feature is read-only — it never modifies transaction or account data.
+
+---
+
+## Business Rules
+
+- Viewing transactions must never modify `transactions.json` or `accounts.json`
+- All transactions are displayed — no filtering, no search, no pagination
+- Transactions are sorted by date (newest → oldest)
+- If dates are equal, sorted by transaction ID (highest → lowest) for deterministic ordering
+- Display columns: Transaction ID, Date, Type, Account, Amount, Description
+- Account names are resolved from `account_id` using `accounts.json`
+- If a transaction references an `account_id` that no longer exists, display "Deleted Account"
+- Income amounts displayed as `+₹1,000.00`, Expense amounts as `-₹500.00`
+- Type column is kept even though amount has +/- signs (future Transfer type will need it)
+- Summary shows Total Income and Total Expense below the table
+- Invalid records are skipped — not displayed, not included in summary calculations
+- Aggregated count of invalid records is shown (e.g., "Skipped 3 invalid transaction records.")
+- If no transactions exist, display "No transactions found." — no crash, no empty table
+- If all transactions are invalid, display the skip count then the empty-state message
+- Accounts are loaded only after confirming transactions exist — no unnecessary file I/O
+
+---
+
+## Functions
+
+| Function | Purpose | Why Needed |
+|----------|---------|------------|
+| `format_transaction_amount(amount, transaction_type)` | Format amount with `+`/`-` sign and `₹` symbol | Separate from `format_currency()` because existing call sites (balances, summaries) don't need signs — avoids breaking 4 existing usages |
+| `validate_transaction(transaction)` | Check if a single record has all required keys and valid values | Catches missing keys, invalid types ("Banana"), non-numeric amounts, empty descriptions, and empty dates before they cause silent errors |
+| `get_account_name(account_id, accounts)` | Resolve an `account_id` to an account name via linear scan | Returns "Deleted Account" if no match — handles deleted accounts gracefully without crashing |
+| `display_transaction_table(transactions, accounts)` | Print formatted table header and all transaction rows | Contains per-row logic (two helper calls + column formatting) — enough complexity to extract from the orchestrator |
+| `view_transactions()` | Orchestrate: load → empty check → load accounts → validate → sort → display → summarize | Same orchestrator pattern as `add_transaction()` and `view_accounts()` |
+
+---
+
+## Flow
+
+1. `main()` shows menu with "View Transactions" as option 4
+2. User picks "View Transactions" → `view_transactions()` is called
+3. Transactions are loaded from JSON via `load_transactions()` (reused from Feature 3)
+4. If the list is empty → print "No transactions found." and return (accounts are NOT loaded)
+5. Accounts are loaded from JSON via `load_accounts()` (deferred until needed)
+6. Each transaction is validated via `validate_transaction()` — separated into valid and invalid lists
+7. If any invalid records found → print "Skipped N invalid transaction record(s)."
+8. If no valid records remain → print empty-state message and return
+9. Valid transactions are sorted inline using `sorted()` — date descending, then transaction ID descending
+10. `display_transaction_table()` prints the header and each row with resolved account names and signed amounts
+11. Total Income and Total Expense are calculated from valid transactions using `sum()` with generator expressions
+12. Summary is printed using `format_currency()` — control returns to the menu
+
+---
+
+## Key Learnings
+
+**Python concepts:**
+- `set` and `.issubset()` — checks if all required keys exist in a dictionary; more readable than checking each key individually
+- `isinstance(value, (int, float))` — type checking with a tuple of types to accept multiple valid types
+- `sorted()` with tuple key — `key=lambda t: (t["date"], t["transaction_id"])` sorts by primary then secondary key
+- `reverse=True` — reverses the entire sort order (newest date and highest ID first)
+- Generator expressions inside `sum()` — `sum(t["amount"] for t in list if t["type"] == "Income")` filters and sums in one pass without creating an intermediate list
+- `round(value, 2)` — prevents floating-point drift when summing many decimal amounts
+- f-string alignment — `:<6` for left-aligned, `:>15` for right-aligned columns in fixed-width table output
+- List filtering with a loop — building `valid_transactions` by appending only records that pass validation
+- Helper functions as pure functions — `validate_transaction()`, `get_account_name()`, and `format_transaction_amount()` have no side effects; they take input and return output
+- Constants as a single source of truth — `REQUIRED_TRANSACTION_KEYS` and `VALID_TRANSACTION_TYPES` used by both input validation (Feature 3) and display validation (Feature 4)
+
+**Software development concepts:**
+- Data validation beyond key presence — checking that values are correct (type is Income/Expense, amount is numeric, description is non-empty) prevents silently incorrect summaries
+- Defensive programming — invalid records are skipped with a warning, never crash the application
+- Data integrity — invalid records are excluded from both display and calculations; summaries are always accurate
+- Read-only operations — `save_transactions()` and `save_accounts()` are never called; data flows one direction (file → process → display)
+- Separation of concerns — validation, display, formatting, and orchestration are each in separate functions
+- Data relationships — `account_id` links transactions to accounts; `get_account_name()` resolves this foreign key at display time
+- Graceful error handling — deleted accounts show "Deleted Account" instead of crashing; empty states show friendly messages
+- Deterministic sorting — using a secondary sort key (transaction ID) ensures identical output every time, even when dates are equal
+- Reusability — `format_currency()` from Feature 2 is reused for summary totals; `load_transactions()` and `load_accounts()` from earlier features are reused
+- Single source of truth — transaction type validation uses the same `VALID_TRANSACTION_TYPES` constant as `get_valid_transaction_type()`; adding "Transfer" later requires changing only the constant
+
+---
+
+## Known Limitations (V1)
+
+- No transaction filtering (by date, type, or account)
+- No search functionality
+- No pagination — all transactions displayed at once
+- Long descriptions may push table rows beyond terminal width — won't crash, just looks off
+- No category support — all transactions are uncategorized
+- No edit or delete transaction support
+- Indian numbering system (lakh/crore) not implemented — uses standard comma formatting
+
+---
+
+## Future Improvements
+
+- Filter transactions by date range, type, or account
+- Search transactions by description keyword
+- Category-based views (once categories are implemented)
+- Support Transfer transaction type (between accounts)
+- Monthly or category-wise expense reports
+- Analytics dashboard with spending trends
+- Pagination for large transaction lists
