@@ -361,3 +361,148 @@ Allow users to view all historical transactions in a formatted CLI table with a 
 - Monthly or category-wise expense reports
 - Analytics dashboard with spending trends
 - Pagination for large transaction lists
+
+---
+---
+
+# Feature 5: Category Management
+
+## Purpose
+
+Allow users to manage transaction categories via a CLI submenu. This feature establishes the foundational data structures required to group transactions logically, supporting future analytics and AI-driven insights. It includes the ability to view, create, rename, soft-delete, and restore categories.
+
+---
+
+## Business Rules
+
+- Default categories are automatically seeded if the system is completely empty
+- Category types (Expense/Income) are set at creation and can never be changed
+- Category type is inferred from the menu path (e.g., "Add Expense Category")
+- Default categories cannot be renamed
+- Default categories cannot be deleted
+- All category names must be globally unique across all types
+- Uniqueness checks are strictly case-insensitive
+- If a user attempts to create a new category with the exact name of a deleted category (of the same type), the system intelligently restores the old category instead of duplicating IDs
+- All names have trailing and leading whitespace trimmed
+- Empty category names are hard-rejected
+- Renaming a category to its exact current name (case-insensitive) is explicitly blocked (e.g., renaming 'Gym' to 'gym' is rejected)
+- Restoring a deleted category is blocked if an active category with the same name already exists
+- Deleted categories are appended with a "(Deleted)" suffix in view lists
+- Category IDs are kept completely hidden from the user interface
+- Categories are sorted alphabetically, with active categories shown before deleted categories
+
+---
+
+## Functions
+
+| Function | Purpose | Why Needed |
+|----------|---------|------------|
+| `load_categories()` | Read categories from JSON file into a list | Every operation needs the current data — duplicate checks, ID generation, validation |
+| `save_categories(categories)` | Write the full categories list back to JSON | Centralizes persistent storage for category records |
+| `generate_category_id(categories)` | Return the next unique ID | Category IDs must auto-increment without user input to act as stable foreign keys |
+| `ensure_default_categories()` | Seed the system with default categories if empty | Speeds up user onboarding and ensures essential categories exist |
+| `view_categories()` | Display all categories, grouped by type and sorted | Allows users to visually verify active and deleted categories |
+| `validate_category_name(name)` | Trim whitespace and reject empty names | Centralizes sanitization so both creation and renaming share the same rules |
+| `is_duplicate_category_name(categories, name, exclude_id)` | Case-insensitive global uniqueness check | Enforces the unique-name business rule, with an optional exclusion for renaming |
+| `select_category(categories, filter_fn, empty_message)` | Unified selection helper for categories | DRY principle — reusable loop for rename, delete, and restore flows |
+| `create_category(category_type)` | Create or auto-restore a category | Coordinates validation, global uniqueness, and intelligent auto-restoration |
+| `rename_category()` | Rename a custom category | Updates category names while blocking redundant or duplicate renames |
+| `delete_category()` | Soft delete a custom category after confirmation | Hides categories without breaking past transaction referential integrity |
+| `restore_category()` | Restore a deleted category | Brings back hidden categories, checking for active name collisions first |
+| `manage_categories()` | Category submenu loop | Sub-orchestrator; keeps running category operations until user exits back to main |
+
+---
+
+## Flow
+
+**Main Flow**
+1. `main()` shows menu with "Manage Categories" as option 5
+2. User picks "Manage Categories" → `manage_categories()` is called
+3. `ensure_default_categories()` runs to seed defaults if the system is completely empty
+4. Submenu loop is displayed offering View, Add Expense, Add Income, Rename, Delete, Restore, and Back
+
+**Create Category Flow**
+1. User picks "Add Expense Category" or "Add Income Category"
+2. Categories are loaded from JSON
+3. User enters a name → whitespace is trimmed
+4. Name is validated → rejected if empty
+5. System checks for a deleted category with the exact name and same type → auto-restores if found
+6. System checks for duplicate active categories across all types → rejected if duplicate
+7. New category record is built and appended
+8. Full list is saved to JSON and confirmation is printed
+
+**Rename Category Flow**
+1. User picks "Rename Category"
+2. Categories are loaded from JSON
+3. `select_category()` filters for non-default categories and displays numbered list
+4. User selects a category
+5. User enters new name → whitespace is trimmed, rejected if empty
+6. New name is compared against current name case-insensitively → rejected if identical (e.g., "Gym" to "gym")
+7. New name is checked for global duplicates (excluding itself) → rejected if exists
+8. Category name is updated and saved to JSON
+
+**Delete Category Flow**
+1. User picks "Delete Category"
+2. Categories are loaded from JSON
+3. `select_category()` filters for active, non-default categories and displays numbered list
+4. User selects a category
+5. User is prompted for confirmation (`y/n`)
+6. If 'y', the `is_deleted` flag is set to `True` (Soft Delete)
+7. Full list is saved to JSON
+
+**Restore Category Flow**
+1. User picks "Restore Category"
+2. Categories are loaded from JSON
+3. `select_category()` filters for deleted categories and displays numbered list
+4. User selects a category
+5. System checks if an active category with the exact name already exists → blocks restore if true
+6. `is_deleted` flag is set to `False`
+7. Full list is saved to JSON
+
+---
+
+## Design Decisions
+
+- **`category_id` instead of category name:** Names change over time. If a user renames "Gym" to "Fitness", using a stable numeric ID ensures that all past transactions pointing to ID `11` instantly reflect the new name. Linking by name would require updating every historical transaction during a rename.
+- **Soft delete instead of hard delete:** Financial data relies on historical accuracy. Permanently deleting a category would break past transactions linked to it. Soft deletion preserves referential integrity by merely hiding the category from active selection menus while keeping the data intact for reporting.
+- **Global uniqueness instead of type-based uniqueness:** Allowing identical names across types creates data ambiguity where an Expense category named "Food" and an Income category named "Food" could coexist simultaneously. Enforcing global uniqueness ensures that AI insights and analytics can group data purely by name without NLP confusion.
+- **Type inferred from menu instead of asking the user:** The submenu directly routes to "Add Expense Category" and "Add Income Category" rather than asking the user for the type after they start the creation flow. This reduces prompts and minimizes user error by establishing intent upfront.
+- **Unified `select_category()` helper instead of separate selection functions:** Consolidated the repetitive selection flow for renaming, deleting, and restoring into a highly flexible helper function. This enforces the DRY principle and dramatically reduces code duplication.
+
+---
+
+## Key Learnings
+
+**Python concepts:**
+- `json.load()` and `json.dump()` with `indent=4` for human-readable formatting, handling malformed files with `try-except json.JSONDecodeError`
+- List filtering with comprehensions to cleanly separate data (e.g., `[c for c in categories if c["type"] == "Expense"]`)
+- Multi-key sorting by passing a tuple to the `key` argument: `categories.sort(key=lambda c: (c["is_deleted"], c["name"].lower()))`
+- Boolean sorting logic — because `False` evaluates to `0` and `True` to `1`, active categories (`False`) sort before deleted ones (`True`)
+- Passing functions as arguments — `filter_fn` (a lambda or local function) passed to `select_category` dynamically dictates allowed selections
+- Optional parameters — `exclude_id=None` allowed the same validation function to be used for both creation and renaming
+- Modeling state using boolean flags (`is_default`, `is_deleted`) rather than separate lists to maintain a single source of truth
+
+**Software development concepts:**
+- Separation of concerns — distinct layers for Data I/O, Seeding, Validation, Selection, and Operations
+- Single Responsibility Principle (DRY) — consolidated logic into a single `select_category()` helper to reduce code duplication across rename, delete, and restore
+- Soft Delete vs Hard Delete — implemented Soft Delete pattern to preserve historical accuracy and referential integrity of past financial transactions
+- Global uniqueness constraints — enforcing unique names across all types prevents ambiguous data states (e.g., conflicting Expense and Income categories)
+- Defensive programming — wrapping numeric inputs in `isdigit()` and `try-except ValueError` blocks to prevent crashes
+
+---
+
+## Known Limitations (V1)
+
+- Transactions do not yet use `category_id` (Feature 6 will integrate this)
+- Category names can theoretically be very long, potentially misaligning the display table
+- Categories cannot be merged (e.g., combining "Gym" and "Fitness" into a single category is not supported)
+- No pagination for category views if the list becomes massive
+
+---
+
+## Future Improvements
+
+- Integrate categories into the `add_transaction()` flow
+- Spending analysis and pie charts grouped by category
+- Income analysis reports
+- Analytics dashboard with AI insights leveraging globally unique category names

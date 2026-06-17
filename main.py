@@ -15,6 +15,13 @@ TRANSACTIONS_FILE = os.path.join(DATA_DIR, "transactions.json")
 VALID_TRANSACTION_TYPES = ["Income", "Expense"]
 REQUIRED_TRANSACTION_KEYS = {"transaction_id", "account_id", "type", "amount", "description", "date"}
 
+CATEGORIES_FILE = os.path.join(DATA_DIR, "categories.json")
+VALID_CATEGORY_TYPES = ["Income", "Expense"]
+DEFAULT_EXPENSE_CATEGORIES = ["Food", "Transport", "Shopping", "Education", "Bills",
+                              "Health", "Entertainment", "Subscription", "Travel", "Other Expense"]
+DEFAULT_INCOME_CATEGORIES = ["Salary", "Freelance", "Business", "Investment Income",
+                             "Gift", "Refund", "Other Income"]
+
 
 def load_accounts():
     """Return all accounts from the JSON file, or [] if none exist."""
@@ -82,6 +89,305 @@ def generate_transaction_id(transactions):
         return 1
 
     return max(transaction["transaction_id"] for transaction in transactions) + 1
+
+
+def load_categories():
+    """Return all categories from the JSON file, or [] if none exist."""
+
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
+
+    if not os.path.exists(CATEGORIES_FILE):
+        return []
+
+    try:
+        with open(CATEGORIES_FILE, "r", encoding="utf-8") as file:
+            content = file.read()
+
+        if not content.strip():
+            return []
+
+        return json.loads(content)
+    except json.JSONDecodeError:
+        return []
+
+
+def save_categories(categories):
+    """Write the full categories list to categories.json."""
+
+    with open(CATEGORIES_FILE, "w", encoding="utf-8") as file:
+        json.dump(categories, file, indent=4)
+
+
+def generate_category_id(categories):
+    """Return the next category ID (highest existing + 1, starting from 1)."""
+
+    if len(categories) == 0:
+        return 1
+
+    return max(category["category_id"] for category in categories) + 1
+
+
+def ensure_default_categories():
+    """Seed the system with default categories if the list is empty."""
+
+    categories = load_categories()
+
+    if len(categories) > 0:
+        return categories
+
+    for name in DEFAULT_EXPENSE_CATEGORIES:
+        new_category = {
+            "category_id": generate_category_id(categories),
+            "name": name,
+            "type": "Expense",
+            "is_default": True,
+            "is_deleted": False
+        }
+        categories.append(new_category)
+
+    for name in DEFAULT_INCOME_CATEGORIES:
+        new_category = {
+            "category_id": generate_category_id(categories),
+            "name": name,
+            "type": "Income",
+            "is_default": True,
+            "is_deleted": False
+        }
+        categories.append(new_category)
+
+    save_categories(categories)
+    return categories
+
+
+def view_categories():
+    """Display all categories, grouped by type, sorted alphabetically."""
+
+    print("\n--- View Categories ---")
+
+    categories = load_categories()
+
+    if len(categories) == 0:
+        print("\nNo categories found.")
+        return
+
+    expense_categories = [c for c in categories if c["type"] == "Expense"]
+    income_categories = [c for c in categories if c["type"] == "Income"]
+
+    def sort_key(c):
+        return (c["is_deleted"], c["name"].lower())
+
+    expense_categories.sort(key=sort_key)
+    income_categories.sort(key=sort_key)
+
+    if expense_categories:
+        print("\nExpense Categories:\n")
+        print(f"  {'#':<4}{'Name'}")
+        print("  --- --------------------")
+        for i, c in enumerate(expense_categories, start=1):
+            name_display = f"{c['name']} (Deleted)" if c["is_deleted"] else c["name"]
+            print(f"  {i:<4}{name_display}")
+
+    if income_categories:
+        print("\nIncome Categories:\n")
+        print(f"  {'#':<4}{'Name'}")
+        print("  --- --------------------")
+        for i, c in enumerate(income_categories, start=1):
+            name_display = f"{c['name']} (Deleted)" if c["is_deleted"] else c["name"]
+            print(f"  {i:<4}{name_display}")
+
+
+def validate_category_name(name):
+    """Trim whitespace and return None if empty, else return trimmed name."""
+
+    trimmed = name.strip()
+    if len(trimmed) == 0:
+        return None
+    return trimmed
+
+
+def is_duplicate_category_name(categories, name, exclude_id=None):
+    """Case-insensitive uniqueness check globally across active categories."""
+
+    name_lower = name.lower()
+    for c in categories:
+        if c["is_deleted"]:
+            continue
+        if exclude_id is not None and c["category_id"] == exclude_id:
+            continue
+        if c["name"].lower() == name_lower:
+            return True
+    return False
+
+
+def select_category(categories, filter_fn, empty_message):
+    """Unified selection helper for categories."""
+
+    filtered_categories = [c for c in categories if filter_fn(c)]
+
+    if len(filtered_categories) == 0:
+        print(f"\n{empty_message}")
+        return None
+
+    print("\nSelect a category:")
+    for i, category in enumerate(filtered_categories, start=1):
+        name_display = f"{category['name']} (Deleted)" if category["is_deleted"] else category["name"]
+        print(f"  {i}. {name_display}")
+
+    while True:
+        choice = input("Enter the number of the category: ").strip()
+
+        if not choice.isdigit():
+            print("Please enter a valid number.")
+            continue
+
+        choice_number = int(choice)
+
+        if choice_number < 1 or choice_number > len(filtered_categories):
+            print(f"Please enter a number between 1 and {len(filtered_categories)}.")
+            continue
+
+        return filtered_categories[choice_number - 1]
+
+
+def create_category(category_type):
+    """Create or restore a category of the specified type."""
+
+    print(f"\n--- Add {category_type} Category ---")
+
+    categories = load_categories()
+
+    while True:
+        name_input = input("Enter category name: ").strip()
+
+        name = validate_category_name(name_input)
+        if name is None:
+            print("Category name cannot be empty.")
+            continue
+
+        deleted_match = None
+        for c in categories:
+            if c["name"].lower() == name.lower() and c["is_deleted"]:
+                deleted_match = c
+                break
+
+        if deleted_match is not None:
+            if deleted_match["type"] != category_type:
+                print(f"Category '{name}' already exists as a deleted {deleted_match['type']} category.")
+                print("New category name must be unique across all types.")
+                continue
+
+            if is_duplicate_category_name(categories, name):
+                print(f"Cannot restore. Active category '{name}' already exists.")
+                continue
+
+            deleted_match["is_deleted"] = False
+            save_categories(categories)
+            print(f"\nCategory '{name}' restored automatically!")
+            return
+
+        if is_duplicate_category_name(categories, name):
+            print(f"Category '{name}' already exists.")
+            continue
+
+        new_category = {
+            "category_id": generate_category_id(categories),
+            "name": name,
+            "type": category_type,
+            "is_default": False,
+            "is_deleted": False
+        }
+        categories.append(new_category)
+        save_categories(categories)
+        print(f"\nCategory '{name}' created successfully!")
+        return
+
+
+def rename_category():
+    """Rename a custom category."""
+
+    print("\n--- Rename Category ---")
+
+    categories = load_categories()
+
+    def filter_fn(c):
+        return not c["is_default"]
+
+    category = select_category(categories, filter_fn, "No custom categories to rename.")
+    if category is None:
+        return
+
+    current_name = category["name"]
+
+    while True:
+        name_input = input("Enter new name: ").strip()
+
+        new_name = validate_category_name(name_input)
+        if new_name is None:
+            print("Category name cannot be empty.")
+            continue
+
+        if new_name.lower() == current_name.lower():
+            print("\nNew category name must be different from current name.")
+            return
+
+        if is_duplicate_category_name(categories, new_name, exclude_id=category["category_id"]):
+            print(f"Category '{new_name}' already exists.")
+            continue
+
+        category["name"] = new_name
+        save_categories(categories)
+        print(f"\nCategory renamed from '{current_name}' to '{new_name}'.")
+        return
+
+
+def delete_category():
+    """Soft delete a custom category after confirmation."""
+
+    print("\n--- Delete Category ---")
+
+    categories = load_categories()
+
+    def filter_fn(c):
+        return not c["is_default"] and not c["is_deleted"]
+
+    category = select_category(categories, filter_fn, "No custom categories to delete.")
+    if category is None:
+        return
+
+    choice = input(f"\nDelete category '{category['name']}'? (y/n): ").strip()
+
+    if choice.lower() == "y":
+        category["is_deleted"] = True
+        save_categories(categories)
+        print(f"\nCategory '{category['name']}' deleted.")
+    else:
+        print("\nDeletion cancelled.")
+
+
+def restore_category():
+    """Restore a deleted category."""
+
+    print("\n--- Restore Category ---")
+
+    categories = load_categories()
+
+    def filter_fn(c):
+        return c["is_deleted"]
+
+    category = select_category(categories, filter_fn, "No deleted categories to restore.")
+    if category is None:
+        return
+
+    name = category["name"]
+
+    if is_duplicate_category_name(categories, name):
+        print(f"\nCannot restore. Active category '{name}' already exists.")
+        return
+
+    category["is_deleted"] = False
+    save_categories(categories)
+    print(f"\nCategory '{name}' restored.")
 
 
 def is_duplicate_name(accounts, name):
@@ -473,6 +779,41 @@ def view_transactions():
     print(f"  Total Expense : {format_currency(total_expense)}")
 
 
+def manage_categories():
+    """Category submenu loop."""
+
+    ensure_default_categories()
+
+    while True:
+        print("\n--- Manage Categories ---")
+        print("1. View Categories")
+        print("2. Add Expense Category")
+        print("3. Add Income Category")
+        print("4. Rename Category")
+        print("5. Delete Category")
+        print("6. Restore Category")
+        print("7. Back to Main Menu")
+
+        choice = input("Enter your choice (1-7): ").strip()
+
+        if choice == "1":
+            view_categories()
+        elif choice == "2":
+            create_category("Expense")
+        elif choice == "3":
+            create_category("Income")
+        elif choice == "4":
+            rename_category()
+        elif choice == "5":
+            delete_category()
+        elif choice == "6":
+            restore_category()
+        elif choice == "7":
+            break
+        else:
+            print("Invalid choice. Please enter a number between 1 and 7.")
+
+
 def main():
     """Main menu loop."""
 
@@ -486,9 +827,10 @@ def main():
         print("2. View Accounts")
         print("3. Add Transaction")
         print("4. View Transactions")
-        print("5. Exit")
+        print("5. Manage Categories")
+        print("6. Exit")
 
-        choice = input("Enter your choice (1-5): ").strip()
+        choice = input("Enter your choice (1-6): ").strip()
 
         if choice == "1":
             add_account()
@@ -499,10 +841,12 @@ def main():
         elif choice == "4":
             view_transactions()
         elif choice == "5":
+            manage_categories()
+        elif choice == "6":
             print("\nGoodbye! See you next time.")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 5.")
+            print("Invalid choice. Please enter a number between 1 and 6.")
 
 
 if __name__ == "__main__":

@@ -1,1 +1,121 @@
-[]
+[
+    {
+        "category_id": 1,
+        "name": "Food",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 2,
+        "name": "Transport",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 3,
+        "name": "Shopping",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 4,
+        "name": "Education",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 5,
+        "name": "Bills",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 6,
+        "name": "Health",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 7,
+        "name": "Entertainment",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 8,
+        "name": "Subscription",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 9,
+        "name": "Travel",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 10,
+        "name": "Other Expense",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 11,
+        "name": "Salary",
+        "type": "Income",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 12,
+        "name": "Freelance",
+        "type": "Income",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 13,
+        "name": "Business",
+        "type": "Income",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 14,
+        "name": "Investment Income",
+        "type": "Income",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 15,
+        "name": "Gift",
+        "type": "Income",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 16,
+        "name": "Refund",
+        "type": "Income",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 17,
+        "name": "Other Income",
+        "type": "Income",
+        "is_default": true,
+        "is_deleted": false
+    }
+]

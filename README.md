@@ -1,58 +1,91 @@
 # Expense Intelligence System
 
-A Personal Finance Management System built with Python.
+## Project Overview
 
-The goal of this project is to learn real software development by building a practical application for managing personal finances.
+This is a personal finance management system built as a Python CLI application. The project is being developed progressively, feature-by-feature, as a practical exercise to learn and apply software engineering concepts. It utilizes a function-based architecture and relies on JSON files for local data persistence.
 
 ## Features
 
-### Account Management
+### Feature 1: Account Creation
 
-* Multiple accounts
-* Cash, UPI, Bank Accounts, Investment Accounts
-* Account balance tracking
+* Create accounts
+* Multiple account types
+* Account validation
+* JSON persistence
 
-### Category Management
+### Feature 2: View Accounts
 
-* Custom categories
-* Food, Shopping, Transport, Gym, etc.
+* Display accounts
+* Account summaries
+* Balance calculations
 
-### Transaction Management
+### Feature 3: Add Transaction
 
-* Income tracking
-* Expense tracking
+* Income transactions
+* Expense transactions
+* Account balance updates
+* Transaction validation
+
+### Feature 4: View Transactions
+
 * Transaction history
+* Income and expense summaries
+* Account name resolution
+* Validation of stored records
 
-### Transfer Management
+### Feature 5: Category Management
 
-* Transfer money between accounts
-* Transfers do not count as expenses
+* View categories
+* Create categories
+* Rename categories
+* Soft delete categories
+* Restore categories
+* Default categories
+* Global uniqueness validation
 
-### Debt Tracking
-
-* Money lent
-* Money borrowed
-* Pending and paid status
-
-### Dashboard
-
-* Total income
-* Total expenses
-* Net savings
-* Account balances
-* Debt summary
-
-## Tech Stack
+## Technology Used
 
 * Python
 * JSON Storage
-* Git
-* GitHub
+* Git and GitHub
 
-## Project Status
+## Current Progress
 
-Current Phase:
-Planning & Development
+**Completed Features:**
 
-Next Feature:
-Account Management
+* Feature 1: Account Creation
+* Feature 2: View Accounts
+* Feature 3: Add Transaction
+* Feature 4: View Transactions
+* Feature 5: Category Management
+
+**Currently Working On:**
+
+* Feature 6: Category Integration
+
+## Planned Features
+
+* Category-based transactions
+* Account transfers
+* Debt tracking
+* Financial dashboard
+* Reports and analytics
+* AI insights
+
+## Project Structure
+
+```text
+Expense-Intelligence-System/
+├── data/
+│   ├── accounts.json
+│   ├── categories.json
+│   └── transactions.json
+├── docs/
+│   └── learning_notes.md
+├── main.py
+└── README.md
+```
+
+## Why I Built This Project
+
+I built this system to learn software development through building a real, practical project. Instead of just following tutorials, I am developing this application feature-by-feature. Each feature is planned, implemented, tested, documented, and committed separately. This hands-on approach helps me practice software engineering principles, business rule design, validation, and JSON data persistence in a structured way.
