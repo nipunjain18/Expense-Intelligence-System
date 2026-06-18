@@ -506,3 +506,117 @@ Allow users to manage transaction categories via a CLI submenu. This feature est
 - Spending analysis and pie charts grouped by category
 - Income analysis reports
 - Analytics dashboard with AI insights leveraging globally unique category names
+
+---
+
+# Feature 6: Category Integration
+
+## Purpose
+
+Connect categories with transactions by storing `category_id` in transaction records, rather than having no category relationship.
+
+---
+
+## Business Rules
+
+**Transaction Structure:**
+```json
+{
+"transaction_id": 1,
+"account_id": 1,
+"category_id": 3,
+"type": "Expense",
+"amount": 500,
+"description": "Lunch",
+"date": "2026-06-18"
+}
+```
+
+- **Mandatory Field:** A transaction cannot be created without a category.
+- **Type Matching:** Category type must match the transaction type (Income uses Income categories, Expense uses Expense categories).
+- **Selection State:** Only active categories can be selected; deleted categories are hidden during creation. Default categories remain protected.
+- **Data Normalization:** Store only `account_id` and `category_id` in transactions. Never store names to prevent data duplication.
+- **Dynamic Display:** Active categories display normally (e.g., `Food`). Deleted categories append a suffix (e.g., `Food (Deleted)`).
+- **Rename & Restore:** Renaming or restoring a category instantly updates past transactions since the ID never changes.
+
+---
+
+## Functions
+
+**Functions Added:**
+- `get_category_name()`
+- `select_transaction_category()`
+- `add_income()`
+- `add_expense()`
+- `_add_transaction()`
+
+**Functions Modified:**
+- `validate_transaction()`
+- `display_transaction_table()`
+- `view_transactions()`
+
+---
+
+## Flow
+
+**Income**
+
+Select Account
+↓
+Select Income Category
+↓
+Amount
+↓
+Description
+↓
+Save Transaction
+
+**Expense**
+
+Select Account
+↓
+Select Expense Category
+↓
+Amount
+↓
+Description
+↓
+Save Transaction
+
+---
+
+## Design Decisions
+
+- **Separate user menus (`add_income`, `add_expense`) but shared internal logic (`_add_transaction`):** Provides a clean user experience while reusing code.
+- **Use `category_id` instead of `category_name`:** Names can change; IDs remain stable.
+- **Resolve category names dynamically when viewing transactions:** Supports renaming, deleting, and restoring categories without having to update old transaction records.
+- **Display deleted categories as `[Name] (Deleted)`:** Keeps old transactions readable without breaking the UI.
+
+---
+
+## Key Learnings
+
+- How IDs can be used to connect related data across multiple JSON files.
+- Why `category_id` is better than `category_name` for long-term stability.
+- How dynamic data lookup allows category renames and restores without modifying old transactions.
+- How shared helper functions reduce duplicate code across similar features like adding income and expenses.
+- How a soft delete approach impacts linked records, requiring special display rules to maintain historical clarity.
+
+---
+
+## Known Limitations (V1)
+
+- No transaction filtering by category.
+- No category-based analytics or charts.
+- No quick selection for recently used categories.
+
+---
+
+## Future Improvements
+
+- Filter transactions by category.
+- Category spending summary.
+- Recently used categories.
+- Category-wise reports.
+- Category spending trends.
+- Dashboard widgets using category data.

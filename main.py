@@ -13,7 +13,7 @@ VALID_ACCOUNT_TYPES = ["Cash", "Bank", "UPI", "Investment", "Credit Card"]
 
 TRANSACTIONS_FILE = os.path.join(DATA_DIR, "transactions.json")
 VALID_TRANSACTION_TYPES = ["Income", "Expense"]
-REQUIRED_TRANSACTION_KEYS = {"transaction_id", "account_id", "type", "amount", "description", "date"}
+REQUIRED_TRANSACTION_KEYS = {"transaction_id", "account_id", "category_id", "type", "amount", "description", "date"}
 
 CATEGORIES_FILE = os.path.join(DATA_DIR, "categories.json")
 VALID_CATEGORY_TYPES = ["Income", "Expense"]
@@ -590,6 +590,9 @@ def validate_transaction(transaction):
     if not isinstance(transaction["date"], str) or not transaction["date"].strip():
         return False
 
+    if not isinstance(transaction["category_id"], int):
+        return False
+
     return True
 
 
@@ -603,15 +606,45 @@ def get_account_name(account_id, accounts):
     return "Deleted Account"
 
 
-def display_transaction_table(transactions, accounts):
+def get_category_name(category_id, categories):
+    """Resolve a category_id to its display name, with deleted/unknown handling."""
+
+    for category in categories:
+        if category["category_id"] == category_id:
+            if category["is_deleted"]:
+                return f"{category['name']} (Deleted)"
+            return category["name"]
+
+    return "Unknown Category"
+
+
+def select_transaction_category(transaction_type):
+    """Present active categories matching the transaction type and return the selection."""
+
+    categories = load_categories()
+
+    def filter_fn(c):
+        return c["type"] == transaction_type and not c["is_deleted"]
+
+    sorted_categories = sorted(categories, key=lambda c: c["name"].lower())
+
+    return select_category(
+        sorted_categories,
+        filter_fn,
+        f"No active {transaction_type} categories available. Please add or restore a category first."
+    )
+
+
+def display_transaction_table(transactions, accounts, categories):
     """Print formatted transaction table with header and rows."""
 
-    header = f"  {'ID':<6}{'Date':<13}{'Type':<11}{'Account':<20}{'Amount':>15}  {'Description'}"
+    header = f"  {'ID':<6}{'Date':<13}{'Type':<11}{'Account':<20}{'Category':<20}{'Amount':>15}  {'Description'}"
     print(f"\n{header}")
     print("  " + "-" * (len(header) - 2))
 
     for transaction in transactions:
         account_name = get_account_name(transaction["account_id"], accounts)
+        category_name = get_category_name(transaction["category_id"], categories)
         formatted_amount = format_transaction_amount(transaction["amount"], transaction["type"])
 
         print(
@@ -619,6 +652,7 @@ def display_transaction_table(transactions, accounts):
             f"{transaction['date']:<13}"
             f"{transaction['type']:<11}"
             f"{account_name:<20}"
+            f"{category_name:<20}"
             f"{formatted_amount:>15}  "
             f"{transaction['description']}"
         )
@@ -662,10 +696,12 @@ def view_accounts():
         )
 
 
-def add_transaction():
-    """Record a new income or expense transaction."""
+def _add_transaction(transaction_type):
+    """Record a new transaction of the specified type (Income or Expense)."""
 
-    print("\n--- Add Transaction ---")
+    print(f"\n--- Add {transaction_type} ---")
+
+    ensure_default_categories()
 
     accounts = load_accounts()
 
@@ -673,14 +709,17 @@ def add_transaction():
         print("\nNo accounts found. Create an account first.")
         return
 
-    transactions = load_transactions()
-
     account = select_account(accounts)
-    transaction_type = get_valid_transaction_type()
 
     if transaction_type == "Expense" and account["balance"] == 0:
         print("\nThis account has no available balance for expenses.")
         return
+
+    category = select_transaction_category(transaction_type)
+    if category is None:
+        return
+
+    transactions = load_transactions()
 
     amount = get_valid_amount(transaction_type, account["balance"])
 
@@ -705,6 +744,7 @@ def add_transaction():
     new_transaction = {
         "transaction_id": generate_transaction_id(transactions),
         "account_id": account["account_id"],
+        "category_id": category["category_id"],
         "type": transaction_type,
         "amount": amount,
         "description": description,
@@ -719,11 +759,24 @@ def add_transaction():
     print(f"  ID:               {new_transaction['transaction_id']}")
     print(f"  Account:          {account['name']}")
     print(f"  Type:             {new_transaction['type']}")
+    print(f"  Category:         {category['name']}")
     print(f"  Amount:           {format_currency(new_transaction['amount'])}")
     print(f"  Description:      {new_transaction['description']}")
     print(f"  Date:             {new_transaction['date']}")
     print(f"  Previous Balance: {format_currency(old_balance)}")
     print(f"  New Balance:      {format_currency(new_balance)}")
+
+
+def add_income():
+    """Entry point for adding an income transaction."""
+
+    _add_transaction("Income")
+
+
+def add_expense():
+    """Entry point for adding an expense transaction."""
+
+    _add_transaction("Expense")
 
 
 def view_transactions():
@@ -739,6 +792,7 @@ def view_transactions():
         return
 
     accounts = load_accounts()
+    categories = load_categories()
 
     valid_transactions = []
     invalid_count = 0
@@ -765,7 +819,7 @@ def view_transactions():
         reverse=True
     )
 
-    display_transaction_table(sorted_transactions, accounts)
+    display_transaction_table(sorted_transactions, accounts, categories)
 
     total_income = round(sum(
         t["amount"] for t in valid_transactions if t["type"] == "Income"
@@ -825,28 +879,31 @@ def main():
         print("\n--- Main Menu ---")
         print("1. Add Account")
         print("2. View Accounts")
-        print("3. Add Transaction")
-        print("4. View Transactions")
-        print("5. Manage Categories")
-        print("6. Exit")
+        print("3. Add Income")
+        print("4. Add Expense")
+        print("5. View Transactions")
+        print("6. Manage Categories")
+        print("7. Exit")
 
-        choice = input("Enter your choice (1-6): ").strip()
+        choice = input("Enter your choice (1-7): ").strip()
 
         if choice == "1":
             add_account()
         elif choice == "2":
             view_accounts()
         elif choice == "3":
-            add_transaction()
+            add_income()
         elif choice == "4":
-            view_transactions()
+            add_expense()
         elif choice == "5":
-            manage_categories()
+            view_transactions()
         elif choice == "6":
+            manage_categories()
+        elif choice == "7":
             print("\nGoodbye! See you next time.")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 6.")
+            print("Invalid choice. Please enter a number between 1 and 7.")
 
 
 if __name__ == "__main__":
