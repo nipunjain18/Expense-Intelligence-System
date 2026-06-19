@@ -620,3 +620,249 @@ Save Transaction
 - Category-wise reports.
 - Category spending trends.
 - Dashboard widgets using category data.
+
+---
+---
+
+# Feature 7: Debt Tracking
+
+## Purpose
+
+Debt Tracking solves the problem of keeping track of money given to or taken from others. Instead of relying on mental notes or loose paper, the system provides a central place to record "Money Lent" and "Money Borrowed." This ensures that personal debts are accurately tied to real financial accounts and balances stay perfectly synchronized when money moves.
+
+---
+
+## Business Rules
+
+### Debt Types
+
+* **LENT:** Money given to someone. Reduces account balance.
+* **BORROWED:** Money received from someone. Increases account balance.
+
+### Debt Status
+
+* **ACTIVE:** The debt has a remaining balance greater than zero.
+* **CLOSED:** The debt has been fully repaid (remaining balance is zero).
+
+### One Debt = One Account
+
+A single debt is permanently tied to the exact account that funded or received it. Splitting a debt across multiple accounts is not allowed to maintain strict tracking.
+
+### Debt Creation Rules
+
+* **Account required:** You cannot create a debt without selecting a valid account.
+* **Amount must be positive:** Debts cannot be created for ₹0 or negative amounts.
+* **LENT cannot exceed account balance:** You cannot lend money you do not have.
+* **BORROWED has no balance restriction:** You can borrow any amount since it adds to your balance.
+
+### Date Rules
+
+* **Default to today's date:** If left blank, the system uses the current date.
+* **User may change date:** The user can backdate a debt or repayment.
+* **Repayment date validation:** A repayment date cannot be chronologically before the debt's original creation date.
+
+### Repayment Rules
+
+* **Must be linked to a specific debt:** Repayments are strictly linked to a specific `debt_id`.
+* **Debt selected by debt_id:** Active debts are displayed as a numbered list; selection targets the underlying ID, not the person's name.
+* **Repayment creates transaction:** Every repayment mathematically updates the account via a linked `transaction_id`.
+* **Repayment updates account balance:** Income (for LENT) or Expense (for BORROWED) is accurately reflected.
+* **Repayment updates remaining amount:** The repayment amount is subtracted from the debt's `remaining_amount`.
+
+### Overpayment Rules
+
+If a user tries to repay more than the remaining balance, the system detects the overpayment and offers two options:
+* **Record remaining amount only:** Truncates the repayment to exactly match the remaining balance.
+* **Cancel:** Aborts the operation entirely.
+
+### Deletion Rules
+
+* **Debt Deletion:** A debt cannot be deleted if any repayment history exists. Repayments must be deleted first.
+* **Repayment Deletion:** Deleting a repayment perfectly reverses its effects: the linked transaction is removed, the account balance is restored, and the debt's remaining amount is increased. If the debt was CLOSED, it automatically re-opens as ACTIVE.
+
+### Data Integrity Rules
+
+* **No debt merging:** If an active debt already exists for a person, the system issues a warning but forces the creation of a brand new, independent debt record.
+* **Every debt remains independent:** Repayments explicitly target one debt at a time.
+* **Person Name Normalization:** Names are stripped of leading/trailing whitespace before saving to prevent duplicate mismatches.
+* **One Debt = One Account:** Strictly enforced across creation and repayment.
+
+### Debt Record
+```json
+{
+    "debt_id": 1,
+    "transaction_id": 45,
+    "account_id": 2,
+    "person_name": "Rahul",
+    "type": "LENT",
+    "status": "ACTIVE",
+    "original_amount": 5000.0,
+    "remaining_amount": 2000.0,
+    "purpose": "Bike Repair",
+    "notes": "Will repay next week",
+    "created_date": "2026-06-19"
+}
+```
+
+### Repayment Record
+```json
+{
+    "repayment_id": 1,
+    "debt_id": 1,
+    "transaction_id": 46,
+    "account_id": 2,
+    "amount": 3000.0,
+    "date": "2026-06-25"
+}
+```
+
+---
+
+## Functions
+
+### Functions Added
+
+* `load_debts()`
+* `save_debts()`
+* `generate_debt_id()`
+* `load_repayments()`
+* `save_repayments()`
+* `generate_repayment_id()`
+* `add_debt()`
+* `view_debts()`
+* `add_repayment()`
+* `delete_repayment()`
+* `delete_debt()`
+* `view_repayments()`
+* `manage_debts()`
+* `create_debt_transaction()`
+* `create_repayment_transaction()`
+* `update_debt_status()`
+* `find_active_debts_by_person()`
+* `delete_linked_transaction()`
+
+### Functions Modified
+
+* `ensure_default_categories()`: Added logic to dynamically seed the 4 system-level debt categories.
+* `get_or_create_debt_categories()`: A dedicated safety function guaranteeing debt categories exist.
+* `select_transaction_category()`: Updated `filter_fn` to proactively hide internal debt categories from manual income/expense workflows.
+* `main()`: Updated the main menu loop to include the new Debt Tracking submenu option.
+
+---
+
+## Flow
+
+### Add Debt
+Debt Type
+↓
+Select Account
+↓
+Person Name
+↓
+Amount
+↓
+Purpose
+↓
+Notes
+↓
+Date
+↓
+Save
+
+### Record Repayment
+Select Debt
+↓
+Select Account
+↓
+Repayment Amount
+↓
+Date
+↓
+Save
+
+### Delete Repayment
+Select Repayment
+↓
+Confirm
+↓
+Reverse Transaction
+↓
+Restore Debt Balance
+
+### Delete Debt
+Select Debt
+↓
+Check Repayment History
+↓
+Delete Linked Transaction
+↓
+Restore Account Balance
+↓
+Delete Debt
+
+---
+
+## Design Decisions
+
+**Decision:** One Debt = One Account
+**Reason:** Allows strict, uncomplicated tracking of where the money went and where it should return to without complex fractional math across multiple bank accounts.
+
+**Decision:** No Debt Merging
+**Reason:** Merging two debts funded by different accounts would break the "One Debt = One Account" rule and corrupt balance tracking. Independent records logically prevent data cross-corruption.
+
+**Decision:** Store transaction_id inside debts and repayments
+**Reason:** Enforces referential integrity. When a debt or repayment is deleted, the system knows exactly which financial transaction to fetch and reverse to restore the core account balance.
+
+**Decision:** Store account_id inside repayments
+**Reason:** Allows rapid rendering of UI tables (like View Repayments) without needing to do computationally expensive lookups across the entire master transactions file.
+
+**Decision:** Repayment records are immutable
+**Reason:** Editing a repayment implies editing dates, amounts, and potentially accounts simultaneously. Reversing and recreating (deleting and adding a new one) is significantly safer than writing complex edit-in-place financial update logic.
+
+**Decision:** Debt status uses ACTIVE/CLOSED
+**Reason:** Prevents users from manually archiving or confusing the state. The system mathematically derives the status purely dynamically based on `remaining_amount == 0`.
+
+**Decision:** Debt categories are system-generated
+**Reason:** Financial reports and transaction histories need to categorize debt flows correctly (e.g., "Debt Lent" as Expense). Hiding them from manual selection prevents users from polluting the data by picking them for non-debt transactions.
+
+**Decision:** Separate debt and repayment files
+**Reason:** Normalizes the data structure. Storing an array of repayments nested inside a single debt record makes global searching, sorting, and specific ID updates much harder to track. 
+
+---
+
+## Key Learnings
+
+* **Financial data consistency:** Learning how to mathematically tie multiple moving parts (debt remaining balance + account balance + transaction history) together so they never fall out of sync.
+* **Referential relationships between records:** Linking JSON objects using IDs (`transaction_id`, `account_id`, `debt_id`) simulating foreign keys in a relational database architecture.
+* **Maintaining balance synchronization:** Understanding that moving money involves double-entry-style logic—if a debt balance goes down, an account balance must go up, and a transaction must be recorded.
+* **Transaction reversal patterns:** Learning how to cleanly "undo" a complex action by carefully reversing its exact mathematical effects, rather than attempting to restore a previously saved state file.
+* **Status-based lifecycle management:** Deriving a record's state (`ACTIVE`/`CLOSED`) mathematically based on its actual data values rather than relying on manual user input toggles.
+* **Soft accounting principles:** Grasping that LENT money acts as an "Expense" against your current liquid balance, and BORROWED money acts as "Income" to your current liquid balance.
+* **Data normalization:** Storing entities (Debts vs Repayments) in their own discrete flat lists rather than deeply nesting them, making the logic code easier to read and scale.
+* **Designing business rules before coding:** Realizing that identifying edge cases (like overpayments, date paradoxes, and debt merging logic) *before* writing code prevents massive structural refactoring later.
+
+---
+
+## Known Limitations (V1)
+
+* No debt editing for amount/account/type
+* No debt reminders
+* No interest calculations
+* No due dates
+* No debt search/filter
+* No partial settlements or discounts
+* No debt analytics
+
+---
+
+## Future Improvements
+
+* Due dates
+* Debt reminders
+* Interest tracking
+* Debt analytics dashboard
+* Person-wise debt summary
+* Debt search
+* Debt filtering
+* Debt reports
+* Debt aging analysis

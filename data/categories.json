@@ -71,49 +71,77 @@
     },
     {
         "category_id": 11,
+        "name": "Debt Lent",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 12,
+        "name": "Debt Repayment Paid",
+        "type": "Expense",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 13,
         "name": "Salary",
         "type": "Income",
         "is_default": true,
         "is_deleted": false
     },
     {
-        "category_id": 12,
+        "category_id": 14,
         "name": "Freelance",
         "type": "Income",
         "is_default": true,
         "is_deleted": false
     },
     {
-        "category_id": 13,
+        "category_id": 15,
         "name": "Business",
         "type": "Income",
         "is_default": true,
         "is_deleted": false
     },
     {
-        "category_id": 14,
+        "category_id": 16,
         "name": "Investment Income",
         "type": "Income",
         "is_default": true,
         "is_deleted": false
     },
     {
-        "category_id": 15,
+        "category_id": 17,
         "name": "Gift",
         "type": "Income",
         "is_default": true,
         "is_deleted": false
     },
     {
-        "category_id": 16,
+        "category_id": 18,
         "name": "Refund",
         "type": "Income",
         "is_default": true,
         "is_deleted": false
     },
     {
-        "category_id": 17,
+        "category_id": 19,
         "name": "Other Income",
+        "type": "Income",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 20,
+        "name": "Debt Borrowed",
+        "type": "Income",
+        "is_default": true,
+        "is_deleted": false
+    },
+    {
+        "category_id": 21,
+        "name": "Debt Repayment Received",
         "type": "Income",
         "is_default": true,
         "is_deleted": false
