@@ -997,3 +997,186 @@ Display Results
 * Monthly trends
 * Charts
 * AI insights
+---
+---
+
+# Feature 9: Transfer Money Between Accounts
+
+## Purpose
+
+The transfer feature was added to allow users to move money between their own accounts while maintaining complete financial integrity.
+
+A transfer represents the movement of money between two accounts owned by the user. It is distinctly different from:
+
+* **Income**: New money entering the system from an external source.
+* **Expense**: Money leaving the system to an external entity.
+
+Transfers should not affect income or expense totals because the overall net worth of the user within the system remains unchanged. Treating a transfer as an expense or income would artificially inflate the financial reports, making the user appear to have earned or spent more than they actually did.
+
+---
+
+## Business Rules
+
+* Transfer is a separate transaction type
+* Transfer is not income
+* Transfer is not expense
+* Same account transfers not allowed
+* Insufficient balance validation
+* Credit Card exception
+* Optional notes
+* Custom date support
+* Future dates not allowed
+* Confirmation screen required
+* One transfer = one transaction record
+* Transfers stored in transactions.json
+* Transfers use from_account_id and to_account_id
+* Transfer deletion allowed
+* Transfer deletion reverses balances
+* Unsafe reversals blocked
+* Credit Card deletion exception
+* Transfers cannot be edited
+* Referenced accounts cannot be deleted
+* Atomic execution
+* Dashboard recent activity includes transfers
+
+---
+
+## Functions
+
+`transfer_money()`
+Purpose: Initiates the transfer creation flow, validating sufficient balances, preventing same-account selection, checking date validity, and atomically executing the balance updates and transaction save.
+
+`delete_transfer()`
+Purpose: Presents a list of transfers and handles deletion. It safely reverses the balance changes without putting normal accounts into the negative, and removes the transfer from the transaction history atomically.
+
+`is_account_referenced_by_transfers()`
+Purpose: A helper function that scans the transaction history to check if an account is part of any transfer, fulfilling future account deletion validation requirements.
+
+`validate_transaction()`
+Purpose: Validate transaction records while supporting different schemas for Income, Expense, and Transfer transactions. Transfer validation uses `from_account_id` and `to_account_id` instead of `account_id` and `category_id`.
+
+`display_transaction_table()`
+Purpose: Display transfer transactions using dynamic `Source Account -> Destination Account` formatting while maintaining compatibility with Income and Expense transaction display logic.
+
+`get_recent_transactions()`
+Purpose: Retrieve the latest valid transactions, including Transfer records, for dashboard Recent Activity display.
+
+`show_dashboard()`
+Purpose: Integrate Transfer transactions into Recent Activity while ensuring transfers remain excluded from income and expense calculations.
+
+---
+
+## Flow
+
+Select Source Account
+↓
+Select Destination Account
+↓
+Validate Different Accounts
+↓
+Enter Amount
+↓
+Validate Balance Rules
+↓
+Enter Date
+↓
+Validate Date
+↓
+Enter Notes
+↓
+Show Confirmation Screen
+↓
+Execute Transfer
+↓
+Save Transaction
+↓
+Update Account Balances
+
+**Deletion Flow:**
+Select Transfer to Delete
+↓
+Validate Safe Balance Reversal
+↓
+Show Confirmation Screen
+↓
+Reverse Balances
+↓
+Remove Transaction Record
+↓
+Save Updates Atomically
+
+---
+
+## Design Decisions
+
+* **One transfer record instead of two records**
+  Storing one `"Transfer"` record instead of a paired Income and Expense record ensures that financial reporting aggregates do not accidentally count transfers as cash flow.
+* **Use transaction type "Transfer"**
+  Explicitly separating the type allows standard validation logic and UI rendering functions to uniquely format transfer data (like `Bank -> Investment`) without breaking existing logic.
+* **Store in transactions.json**
+  Keeping all transaction history in a single file preserves the chronological timeline of the user's financial activity, allowing unified views without cross-file sorting overhead.
+* **Use account IDs instead of account names**
+  Maintains referential integrity. If an account is ever renamed, the transfer history automatically reflects the new name during dynamic UI resolution.
+* **No transfer editing**
+  Editing implies simultaneously modifying dates, amounts, and two separate account balances. Reversing and recreating (deleting and adding new) is significantly safer than writing complex edit-in-place financial update logic.
+* **Atomic save protection**
+  Provides application-level rollback protection by storing backup copies of account and transaction data before execution. If a save operation fails, the previous state can be restored to reduce the risk of data inconsistency.
+* **Confirmation before execution**
+  Transfers update two accounts at once. Explicitly confirming the details prevents accidental cross-account corruption from user typos.
+* **Dashboard integration**
+  Transfer events organically integrate into the Recent Activity feed, providing a comprehensive audit trail of money movement at a glance.
+* **Transfer history integration**
+  Ensures transfers appear chronologically among normal income and expenses for full transparency.
+* **Credit Card special handling**
+  Credit cards natively operate with negative balances (representing owed debt rather than liquid cash), so typical insufficient balance rules are suspended to accommodate paying off credit statements.
+
+---
+
+## Key Learnings
+
+* **Financial integrity:** Ensuring that moving money from one bucket to another does not mistakenly alter global net worth or gross cash flow statistics.
+* **Atomic transactions:** Developing a reliable fallback mechanism (`try/except` with `copy.deepcopy()`) to ensure partial updates never permanently corrupt the system if I/O operations fail.
+* **Data consistency:** Guaranteeing that the `from_account` and `to_account` always maintain equilibrium by subtracting and adding the exact same values synchronously.
+* **Rollback logic:** Understanding how to cache previous states in memory before executing destructive file writes, and gracefully recovering those states upon system errors.
+* **Cross-account operations:** Managing complex flows where user choices on one variable (e.g., source account) strictly influence valid options on another (e.g., preventing same-account selection).
+* **Validation chains:** Linking multiple business rules (balances, dates, valid types) to act as a solid gateway before executing a transaction.
+* **Transaction modeling:** Learning how to adapt an existing schema (removing `category_id` and injecting `from_account_id` / `to_account_id`) to support entirely distinct concepts within a unified data store.
+* **Relational references using IDs:** Preventing hardcoded strings in transaction logs to allow dynamic resolution, ensuring data remains accurate regardless of future upstream changes.
+* **Defensive programming:** Building explicit blocks against edge cases, such as blocking the reversal of a transfer if it would drop a normal account balance below zero.
+* **Business rule enforcement:** Strictly implementing future constraints (e.g., account deletion protection) early on via dedicated helper logic.
+* **Data Modeling:** Learning how a single transaction system can support multiple business concepts (Income, Expense, and Transfer) using different record structures while still remaining inside one unified storage file and one transaction history timeline. Transfer records use a different schema because they represent internal money movement rather than external cash flow, so they do not need categories. However, maintaining all types inside `transactions.json` preserves a single, chronological timeline of financial activity. The key benefit of this unified transaction model is that cross-system features like the Dashboard's Recent Activity feed and global sorting logic can operate seamlessly across all transaction types without requiring complex, multi-file queries or data merging.
+
+---
+
+## Known Limitations
+
+* No recurring transfers
+* No scheduled transfers
+* No transfer fees
+* No transfer editing
+* No multi-currency support
+* No transfer analytics
+
+---
+
+## Review Improvements
+
+* **Fixed date validation:** Switched from silently overwriting invalid inputs with today's date to a strict loop, forcing the user to provide correctly formatted ISO data.
+* **Added future date validation:** Specifically blocked future dates to ensure transactions reflect real, resolved history rather than predicted events.
+* **Added rollback protection:** Backups of memory state are now taken immediately before execution, allowing safe aborts on I/O failure.
+* **Improved atomic execution:** Linked the `save_transactions` and `save_accounts` methods in a unified `try/except` block to prevent half-writes.
+* **Fixed dashboard wording:** Updated "Active Account Count" to "Total Account Count" because the system does not track inactive accounts.
+* **Added transfer cancellation protection:** Implemented and proved that answering `N` during the confirmation prompt leaves the system state completely untouched.
+
+---
+
+## Future Improvements
+
+* Recurring transfers
+* Scheduled transfers
+* Transfer analytics
+* Transfer search/filtering
+* Transfer categories
+* Multi-currency support
+* Bank integration
+

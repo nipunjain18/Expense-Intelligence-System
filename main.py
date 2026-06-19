@@ -2,6 +2,7 @@ import json
 import os
 import sys
 from datetime import date
+import copy
 
 # Ensure the console can display non-ASCII characters like ₹
 sys.stdout.reconfigure(encoding="utf-8")
@@ -12,7 +13,7 @@ ACCOUNTS_FILE = os.path.join(DATA_DIR, "accounts.json")
 VALID_ACCOUNT_TYPES = ["Cash", "Bank", "UPI", "Investment", "Credit Card"]
 
 TRANSACTIONS_FILE = os.path.join(DATA_DIR, "transactions.json")
-VALID_TRANSACTION_TYPES = ["Income", "Expense"]
+VALID_TRANSACTION_TYPES = ["Income", "Expense", "Transfer"]
 REQUIRED_TRANSACTION_KEYS = {"transaction_id", "account_id", "category_id", "type", "amount", "description", "date"}
 
 CATEGORIES_FILE = os.path.join(DATA_DIR, "categories.json")
@@ -710,10 +711,22 @@ def validate_transaction(transaction):
     if not isinstance(transaction, dict):
         return False
 
-    if not REQUIRED_TRANSACTION_KEYS.issubset(transaction.keys()):
+    if transaction.get("type") not in VALID_TRANSACTION_TYPES:
         return False
 
-    if transaction["type"] not in VALID_TRANSACTION_TYPES:
+    if transaction["type"] == "Transfer":
+        required_keys = {"transaction_id", "type", "from_account_id", "to_account_id", "amount", "notes", "date"}
+        if not required_keys.issubset(transaction.keys()):
+            return False
+        if not isinstance(transaction["amount"], (int, float)):
+            return False
+        if not isinstance(transaction["date"], str) or not transaction["date"].strip():
+            return False
+        if not isinstance(transaction["from_account_id"], int) or not isinstance(transaction["to_account_id"], int):
+            return False
+        return True
+
+    if not REQUIRED_TRANSACTION_KEYS.issubset(transaction.keys()):
         return False
 
     if not isinstance(transaction["amount"], (int, float)):
@@ -779,18 +792,27 @@ def display_transaction_table(transactions, accounts, categories):
     print("  " + "-" * (len(header) - 2))
 
     for transaction in transactions:
-        account_name = get_account_name(transaction["account_id"], accounts)
-        category_name = get_category_name(transaction["category_id"], categories)
-        formatted_amount = format_transaction_amount(transaction["amount"], transaction["type"])
+        if transaction["type"] == "Transfer":
+            from_name = get_account_name(transaction["from_account_id"], accounts)
+            to_name = get_account_name(transaction["to_account_id"], accounts)
+            account_display = f"{from_name} -> {to_name}"
+            category_display = "Transfer"
+            formatted_amount = f"₹{transaction['amount']:,.2f}"
+            description = transaction.get("notes", "")
+        else:
+            account_display = get_account_name(transaction["account_id"], accounts)
+            category_display = get_category_name(transaction["category_id"], categories)
+            formatted_amount = format_transaction_amount(transaction["amount"], transaction["type"])
+            description = transaction['description']
 
         print(
             f"  {transaction['transaction_id']:<6}"
             f"{transaction['date']:<13}"
             f"{transaction['type']:<11}"
-            f"{account_name:<20}"
-            f"{category_name:<20}"
+            f"{account_display:<20}"
+            f"{category_display:<20}"
             f"{formatted_amount:>15}  "
-            f"{transaction['description']}"
+            f"{description}"
         )
 
 
@@ -1127,7 +1149,7 @@ def show_dashboard():
 
     print("\n## Financial Overview")
     print(f"  Total Balance        : {format_currency(total_balance)}")
-    print(f"  Active Account Count : {len(accounts)}")
+    print(f"  Total Account Count  : {len(accounts)}")
     print(f"  Total Income         : {format_currency(total_income)}")
     print(f"  Total Expenses       : {format_currency(total_expenses)}")
     print(f"  Net Cash Flow        : {format_signed_currency(net_cash_flow)}")
@@ -1173,12 +1195,20 @@ def show_dashboard():
         print("  " + "-" * (len(header) - 2))
 
         for transaction in recent_transactions:
-            category_name = get_category_name(transaction["category_id"], categories)
+            if transaction["type"] == "Transfer":
+                from_name = get_account_name(transaction["from_account_id"], accounts)
+                to_name = get_account_name(transaction["to_account_id"], accounts)
+                category_display = f"{from_name} -> {to_name}"
+                formatted_amount = f"₹{transaction['amount']:,.2f}"
+            else:
+                category_display = get_category_name(transaction["category_id"], categories)
+                formatted_amount = format_transaction_amount(transaction["amount"], transaction["type"])
+
             print(
                 f"  {transaction['date']:<13}"
                 f"{transaction['type']:<11}"
-                f"{category_name:<25}"
-                f"{format_transaction_amount(transaction['amount'], transaction['type']):>15}"
+                f"{category_display:<25}"
+                f"{formatted_amount:>15}"
             )
 
     net_debt_position = calculate_net_debt_position(total_lent_remaining, total_borrowed_remaining)
@@ -1657,6 +1687,197 @@ def manage_debts():
             print("Invalid choice. Please enter a number between 1 and 7.")
 
 
+def is_account_referenced_by_transfers(account_id):
+    """Helper for future feature: check if an account is part of any transfer."""
+    transactions = load_transactions()
+    for t in transactions:
+        if t["type"] == "Transfer":
+            if t["from_account_id"] == account_id or t["to_account_id"] == account_id:
+                return True
+    return False
+
+
+def transfer_money():
+    """Transfer money between two different accounts."""
+    print("\n--- Transfer Money ---")
+    
+    accounts = load_accounts()
+    if len(accounts) < 2:
+        print("\nYou need at least two accounts to make a transfer.")
+        return
+        
+    print("\nSelect Source Account:")
+    from_account = select_account(accounts)
+    
+    print("\nSelect Destination Account:")
+    to_account = select_account(accounts)
+    
+    if from_account["account_id"] == to_account["account_id"]:
+        print("\nError: Source and destination accounts must be different.")
+        return
+        
+    while True:
+        amount_input = input("Enter amount: ").strip()
+        try:
+            amount = float(amount_input)
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+            continue
+            
+        if amount <= 0:
+            print("Amount must be greater than zero.")
+            continue
+            
+        if from_account["account_type"] != "Credit Card" and amount > from_account["balance"]:
+            print(f"Error: Insufficient balance in {from_account['name']}. Available: {format_currency(from_account['balance'])}.")
+            continue
+            
+        break
+        
+    while True:
+        date_str = input(f"Enter date (YYYY-MM-DD) [default {date.today()}]: ").strip()
+        if not date_str:
+            date_str = str(date.today())
+            break
+        try:
+            parsed_date = date.fromisoformat(date_str)
+            if parsed_date > date.today():
+                print("Error: Transfer date cannot be in the future. Please try again.")
+                continue
+            break
+        except ValueError:
+            print("Invalid date format. Please try again.")
+            
+    notes = input("Enter notes (optional): ").strip()
+    
+    print("\n--- Transfer Summary ---")
+    print(f"From: {from_account['name']}")
+    print(f"To: {to_account['name']}")
+    print(f"Amount: {format_currency(amount)}")
+    print(f"Date: {date_str}")
+    if notes:
+        print(f"Notes: {notes}")
+        
+    confirm = input("\nConfirm Transfer? (Y/N): ").strip().upper()
+    if confirm != 'Y':
+        print("\nTransfer cancelled. No changes were made.")
+        return
+        
+    old_accounts = copy.deepcopy(accounts)
+    transactions = load_transactions()
+    old_transactions = copy.deepcopy(transactions)
+
+    # Execute transfer atomically
+    from_account["balance"] = round(from_account["balance"] - amount, 2)
+    to_account["balance"] = round(to_account["balance"] + amount, 2)
+    
+    new_transaction = {
+        "transaction_id": generate_transaction_id(transactions),
+        "type": "Transfer",
+        "from_account_id": from_account["account_id"],
+        "to_account_id": to_account["account_id"],
+        "amount": amount,
+        "date": date_str,
+        "notes": notes
+    }
+    
+    transactions.append(new_transaction)
+    
+    # Save all updates
+    try:
+        save_transactions(transactions)
+        save_accounts(accounts)
+        print("\nTransfer executed successfully!")
+    except Exception as e:
+        save_transactions(old_transactions)
+        save_accounts(old_accounts)
+        print(f"\nSystem error during transfer: {e}")
+        print("Transfer aborted. No changes were saved.")
+
+
+def delete_transfer():
+    """Delete a transfer and safely reverse balances."""
+    print("\n--- Delete Transfer ---")
+    
+    transactions = load_transactions()
+    transfers = [t for t in transactions if t["type"] == "Transfer"]
+    
+    if not transfers:
+        print("\nNo transfers found.")
+        return
+        
+    accounts = load_accounts()
+    
+    print("\nSelect Transfer to Delete:")
+    header = f"  {'ID':<6}{'Date':<13}{'Account':<30}{'Amount':>15}  {'Notes'}"
+    print(f"\n{header}")
+    print("  " + "-" * (len(header) - 2))
+    
+    # Sort for display, latest first
+    sorted_transfers = sorted(transfers, key=lambda t: (t["date"], t["transaction_id"]), reverse=True)
+    
+    for i, t in enumerate(sorted_transfers, start=1):
+        from_name = get_account_name(t["from_account_id"], accounts)
+        to_name = get_account_name(t["to_account_id"], accounts)
+        acc_display = f"{from_name} -> {to_name}"
+        if len(acc_display) > 28:
+            acc_display = acc_display[:26] + ".."
+        notes_display = t.get("notes", "")
+        formatted_amount = f"₹{t['amount']:,.2f}"
+        print(f"  {i:<4}. {t['date']:<13}{acc_display:<30}{formatted_amount:>15}  {notes_display}")
+        
+    while True:
+        choice = input("\nEnter the number of the transfer to delete: ").strip()
+        if not choice.isdigit():
+            print("Please enter a valid number.")
+            continue
+            
+        idx = int(choice) - 1
+        if 0 <= idx < len(sorted_transfers):
+            selected_transfer = sorted_transfers[idx]
+            break
+        print("Invalid selection.")
+        
+    from_account = next((a for a in accounts if a["account_id"] == selected_transfer["from_account_id"]), None)
+    to_account = next((a for a in accounts if a["account_id"] == selected_transfer["to_account_id"]), None)
+    
+    if to_account and to_account["account_type"] != "Credit Card":
+        if to_account["balance"] < selected_transfer["amount"]:
+            print(f"\nError: Cannot reverse transfer. Reversal would create an invalid negative balance in {to_account['name']}.")
+            print(f"Current balance: {format_currency(to_account['balance'])}, Transfer amount: {format_currency(selected_transfer['amount'])}")
+            return
+            
+    confirm = input(f"\nDelete Transfer #{selected_transfer['transaction_id']}? (Y/N): ").strip().upper()
+    if confirm != 'Y':
+        print("\nDeletion cancelled.")
+        return
+        
+    old_accounts = copy.deepcopy(accounts)
+    old_transactions = copy.deepcopy(transactions)
+
+    # Reverse balances
+    if from_account:
+        from_account["balance"] = round(from_account["balance"] + selected_transfer["amount"], 2)
+    if to_account:
+        to_account["balance"] = round(to_account["balance"] - selected_transfer["amount"], 2)
+        
+    # Remove transaction
+    for idx_t, t in enumerate(transactions):
+        if t["transaction_id"] == selected_transfer["transaction_id"]:
+            del transactions[idx_t]
+            break
+    
+    try:
+        save_transactions(transactions)
+        save_accounts(accounts)
+        print("\nTransfer deleted and balances reversed successfully.")
+    except Exception as e:
+        save_transactions(old_transactions)
+        save_accounts(old_accounts)
+        print(f"\nSystem error during deletion: {e}")
+        print("Deletion aborted. No changes were saved.")
+
+
 def manage_categories():
     """Category submenu loop."""
 
@@ -1705,13 +1926,15 @@ def main():
         print("2. View Accounts")
         print("3. Add Income")
         print("4. Add Expense")
-        print("5. View Transactions")
-        print("6. Manage Categories")
-        print("7. Debt Tracking")
-        print("8. Dashboard")
-        print("9. Exit")
+        print("5. Transfer Money")
+        print("6. View Transactions")
+        print("7. Manage Categories")
+        print("8. Debt Tracking")
+        print("9. Dashboard")
+        print("10. Delete Transfer")
+        print("11. Exit")
 
-        choice = input("Enter your choice (1-9): ").strip()
+        choice = input("Enter your choice (1-11): ").strip()
 
         if choice == "1":
             add_account()
@@ -1722,18 +1945,22 @@ def main():
         elif choice == "4":
             add_expense()
         elif choice == "5":
-            view_transactions()
+            transfer_money()
         elif choice == "6":
-            manage_categories()
+            view_transactions()
         elif choice == "7":
-            manage_debts()
+            manage_categories()
         elif choice == "8":
-            show_dashboard()
+            manage_debts()
         elif choice == "9":
+            show_dashboard()
+        elif choice == "10":
+            delete_transfer()
+        elif choice == "11":
             print("\nGoodbye! See you next time.")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 9.")
+            print("Invalid choice. Please enter a number between 1 and 11.")
 
 
 if __name__ == "__main__":
