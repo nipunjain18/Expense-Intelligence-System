@@ -866,3 +866,134 @@ Delete Debt
 * Debt filtering
 * Debt reports
 * Debt aging analysis
+
+---
+---
+
+# Feature 8: Dashboard
+
+## Purpose
+
+The dashboard was added to provide a high-level, read-only financial overview of the entire Expense Intelligence System on a single screen. Previously, users had to navigate multiple menus (View Accounts, View Transactions, View Debts) and manually calculate their total financial standing. The dashboard solves this by aggregating data from all separate modules (`accounts.json`, `transactions.json`, `debts.json`, `categories.json`) into an instant, centralized snapshot.
+
+---
+
+## Business Rules
+
+* Dashboard is strictly read-only
+* Dashboard never modifies, saves, or deletes data
+* Dashboard uses existing JSON files dynamically instead of storing summary metrics
+* Dashboard relies on existing business logic and validators
+* Dashboard summarizes information instead of duplicating data entry screens
+* Dashboard displays exactly 6 sections:
+  * Financial Overview
+  * Account Summary
+  * Debt Summary
+  * Top Expense Categories
+  * Recent Activity
+  * Net Debt Position
+* Top Expense Categories only calculates transactions of type "Expense"
+* Recent Activity is limited strictly to 5 transactions, sorted newest first
+* Malformed records (missing keys, invalid formats) are silently excluded from all aggregations to prevent crashes
+
+---
+
+## Functions
+
+`calculate_total_balance()`
+Purpose: Calculate total balance across all accounts.
+
+`calculate_income_expense_summary()`
+Purpose: Calculate total income, total expenses, and net cash flow.
+
+`calculate_account_summary()`
+Purpose: Extract valid accounts and their balances.
+
+`calculate_debt_summary()`
+Purpose: Aggregate lent/borrowed amounts and active/closed counts.
+
+`calculate_top_expense_categories()`
+Purpose: Find the 3 highest expense categories.
+
+`get_recent_transactions()`
+Purpose: Retrieve the 5 most recent transactions.
+
+`calculate_net_debt_position()`
+Purpose: Compute net debt (lent minus borrowed).
+
+`format_signed_currency()`
+Purpose: Format amounts with +/- signs.
+
+`show_dashboard()`
+Purpose: Orchestrate dashboard data loading and display.
+
+---
+
+## Flow
+
+Load Data
+↓
+Validate Data
+↓
+Calculate Summaries
+↓
+Generate Dashboard Sections
+↓
+Display Results
+
+---
+
+## Design Decisions
+
+* Read-only architecture
+* Reuse existing helper functions
+* No new JSON files
+* Category resolution using category_id
+* Showing deleted categories as "(Deleted)"
+* Top 3 expense categories only
+* Recent Activity limited to 5 transactions
+* Signed amount formatting (+/-)
+* Total Account Count wording
+
+---
+
+## Key Learnings
+
+* Data aggregation
+* Read-only reporting
+* Cross-feature integration
+* Sorting
+* Filtering
+* Financial calculations
+* Dashboard design
+* Defensive programming
+
+---
+
+## Known Limitations
+
+* No analytics
+* No budgeting
+* No charts
+* No trend analysis
+* No AI insights
+
+---
+
+## Review Improvements
+
+* Added signed transaction formatting (+/-)
+* Improved dashboard validation
+* Fixed account count wording
+* Improved malformed data handling
+
+---
+
+## Future Improvements
+
+* Analytics
+* Budget tracking
+* Savings rate
+* Monthly trends
+* Charts
+* AI insights

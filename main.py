@@ -969,6 +969,226 @@ def view_transactions():
     print(f"  Total Expense : {format_currency(total_expense)}")
 
 
+def format_signed_currency(amount):
+    """Format currency with a + sign for positive values."""
+
+    if amount > 0:
+        return f"+{format_currency(amount)}"
+
+    if amount < 0:
+        return f"-{format_currency(abs(amount))}"
+
+    return format_currency(amount)
+
+
+def get_valid_transactions(transactions):
+    """Return only transaction records that are safe to calculate and display."""
+
+    return [transaction for transaction in transactions if validate_transaction(transaction)]
+
+
+def calculate_total_balance(accounts):
+    """Return the combined balance across all accounts."""
+
+    if not isinstance(accounts, list):
+        return 0.0
+
+    total = 0.0
+    for account in accounts:
+        if isinstance(account, dict) and isinstance(account.get("balance"), (int, float)):
+            total += account["balance"]
+
+    return round(total, 2)
+
+
+def calculate_income_expense_summary(transactions):
+    """Return total income, total expenses, and net cash flow."""
+
+    valid_transactions = get_valid_transactions(transactions)
+    total_income = 0.0
+    total_expenses = 0.0
+    
+    for transaction in valid_transactions:
+        if transaction["type"] == "Income":
+            total_income += transaction["amount"]
+        elif transaction["type"] == "Expense":
+            total_expenses += transaction["amount"]
+            
+    total_income = round(total_income, 2)
+    total_expenses = round(total_expenses, 2)
+    net_cash_flow = round(total_income - total_expenses, 2)
+
+    return total_income, total_expenses, net_cash_flow
+
+
+def calculate_account_summary(accounts):
+    """Return accounts sorted by balance from highest to lowest."""
+
+    if not isinstance(accounts, list):
+        return []
+        
+    valid_accounts = [
+        acc for acc in accounts 
+        if isinstance(acc, dict) and "name" in acc and isinstance(acc.get("balance"), (int, float))
+    ]
+
+    return sorted(valid_accounts, key=lambda account: account["balance"], reverse=True)
+
+
+def calculate_debt_summary(debts):
+    """Return debt totals and counts for active and closed debts."""
+
+    total_lent_remaining = 0.0
+    total_borrowed_remaining = 0.0
+    active_count = 0
+    closed_count = 0
+
+    if not isinstance(debts, list):
+        return 0.0, 0.0, 0, 0
+        
+    for debt in debts:
+        if not isinstance(debt, dict):
+            continue
+            
+        status = debt.get("status")
+        debt_type = debt.get("type")
+        remaining = debt.get("remaining_amount", 0)
+        
+        if not isinstance(remaining, (int, float)):
+            remaining = 0.0
+            
+        if status == "ACTIVE":
+            active_count += 1
+            if debt_type == "LENT":
+                total_lent_remaining += remaining
+            elif debt_type == "BORROWED":
+                total_borrowed_remaining += remaining
+        elif status == "CLOSED":
+            closed_count += 1
+
+    return round(total_lent_remaining, 2), round(total_borrowed_remaining, 2), active_count, closed_count
+
+
+def calculate_top_expense_categories(transactions):
+    """Return the top 3 expense category totals."""
+
+    valid_transactions = get_valid_transactions(transactions)
+    category_totals = {}
+
+    for transaction in valid_transactions:
+        if transaction["type"] != "Expense":
+            continue
+
+        category_id = transaction["category_id"]
+        category_totals[category_id] = round(
+            category_totals.get(category_id, 0) + transaction["amount"],
+            2
+        )
+
+    sorted_categories = sorted(
+        category_totals.items(),
+        key=lambda item: item[1],
+        reverse=True
+    )
+
+    return sorted_categories[:3]
+
+
+def get_recent_transactions(transactions):
+    """Return the latest 5 valid transactions."""
+
+    valid_transactions = get_valid_transactions(transactions)
+
+    return sorted(
+        valid_transactions,
+        key=lambda transaction: (transaction["date"], transaction["transaction_id"]),
+        reverse=True
+    )[:5]
+
+
+def calculate_net_debt_position(total_lent_remaining, total_borrowed_remaining):
+    """Return money owed to you minus money you owe."""
+
+    return round(total_lent_remaining - total_borrowed_remaining, 2)
+
+
+def show_dashboard():
+    """Display a read-only high-level financial overview."""
+
+    print("\n--- Dashboard ---")
+
+    accounts = load_accounts()
+    transactions = load_transactions()
+    debts = load_debts()
+    categories = load_categories()
+
+    total_balance = calculate_total_balance(accounts)
+    total_income, total_expenses, net_cash_flow = calculate_income_expense_summary(transactions)
+
+    print("\n## Financial Overview")
+    print(f"  Total Balance        : {format_currency(total_balance)}")
+    print(f"  Active Account Count : {len(accounts)}")
+    print(f"  Total Income         : {format_currency(total_income)}")
+    print(f"  Total Expenses       : {format_currency(total_expenses)}")
+    print(f"  Net Cash Flow        : {format_signed_currency(net_cash_flow)}")
+
+    print("\n## Account Summary")
+    account_summary = calculate_account_summary(accounts)
+    if len(account_summary) == 0:
+        print("  No accounts found.")
+    else:
+        header = f"  {'Account Name':<25}{'Balance':>15}"
+        print(f"\n{header}")
+        print("  " + "-" * (len(header) - 2))
+        for account in account_summary:
+            print(f"  {account['name']:<25}{format_currency(account['balance']):>15}")
+
+    total_lent_remaining, total_borrowed_remaining, active_debt_count, closed_debt_count = calculate_debt_summary(debts)
+
+    print("\n## Debt Summary")
+    print(f"  Total Lent Amount Remaining     : {format_currency(total_lent_remaining)}")
+    print(f"  Total Borrowed Amount Remaining : {format_currency(total_borrowed_remaining)}")
+    print(f"  Active Debt Count               : {active_debt_count}")
+    print(f"  Closed Debt Count               : {closed_debt_count}")
+
+    print("\n## Top Expense Categories")
+    top_expense_categories = calculate_top_expense_categories(transactions)
+    if len(top_expense_categories) == 0:
+        print("  No expense data available.")
+    else:
+        header = f"  {'Category Name':<25}{'Total Amount':>15}"
+        print(f"\n{header}")
+        print("  " + "-" * (len(header) - 2))
+        for category_id, total_amount in top_expense_categories:
+            category_name = get_category_name(category_id, categories)
+            print(f"  {category_name:<25}{format_currency(total_amount):>15}")
+
+    print("\n## Recent Activity")
+    recent_transactions = get_recent_transactions(transactions)
+    if len(recent_transactions) == 0:
+        print("  No transactions found.")
+    else:
+        header = f"  {'Date':<13}{'Type':<11}{'Category':<25}{'Amount':>15}"
+        print(f"\n{header}")
+        print("  " + "-" * (len(header) - 2))
+
+        for transaction in recent_transactions:
+            category_name = get_category_name(transaction["category_id"], categories)
+            print(
+                f"  {transaction['date']:<13}"
+                f"{transaction['type']:<11}"
+                f"{category_name:<25}"
+                f"{format_transaction_amount(transaction['amount'], transaction['type']):>15}"
+            )
+
+    net_debt_position = calculate_net_debt_position(total_lent_remaining, total_borrowed_remaining)
+
+    print("\n## Net Debt Position")
+    print(f"  Money Owed To You : {format_currency(total_lent_remaining)}")
+    print(f"  Money You Owe     : {format_currency(total_borrowed_remaining)}")
+    print(f"  Net Position      : {format_signed_currency(net_debt_position)}")
+
+
 def find_active_debts_by_person(debts, person_name):
     name_lower = person_name.strip().lower()
     return [d for d in debts if d["person_name"].strip().lower() == name_lower and d["status"] == "ACTIVE"]
@@ -1488,9 +1708,10 @@ def main():
         print("5. View Transactions")
         print("6. Manage Categories")
         print("7. Debt Tracking")
-        print("8. Exit")
+        print("8. Dashboard")
+        print("9. Exit")
 
-        choice = input("Enter your choice (1-8): ").strip()
+        choice = input("Enter your choice (1-9): ").strip()
 
         if choice == "1":
             add_account()
@@ -1507,10 +1728,12 @@ def main():
         elif choice == "7":
             manage_debts()
         elif choice == "8":
+            show_dashboard()
+        elif choice == "9":
             print("\nGoodbye! See you next time.")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 8.")
+            print("Invalid choice. Please enter a number between 1 and 9.")
 
 
 if __name__ == "__main__":
