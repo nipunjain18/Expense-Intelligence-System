@@ -4,7 +4,6 @@ import sys
 from datetime import date
 import copy
 
-# Ensure the console can display non-ASCII characters like ₹
 sys.stdout.reconfigure(encoding="utf-8")
 
 DATA_DIR = "data"
@@ -17,7 +16,6 @@ VALID_TRANSACTION_TYPES = ["Income", "Expense", "Transfer"]
 REQUIRED_TRANSACTION_KEYS = {"transaction_id", "account_id", "category_id", "type", "amount", "description", "date"}
 
 CATEGORIES_FILE = os.path.join(DATA_DIR, "categories.json")
-VALID_CATEGORY_TYPES = ["Income", "Expense"]
 DEBT_LENT_CATEGORY = "Debt Lent"
 DEBT_BORROWED_CATEGORY = "Debt Borrowed"
 DEBT_REPAYMENT_RECEIVED_CATEGORY = "Debt Repayment Received"
@@ -32,14 +30,11 @@ DEFAULT_INCOME_CATEGORIES = ["Salary", "Freelance", "Business", "Investment Inco
 
 DEBTS_FILE = os.path.join(DATA_DIR, "debts.json")
 VALID_DEBT_TYPES = ["LENT", "BORROWED"]
-VALID_DEBT_STATUSES = ["ACTIVE", "CLOSED"]
 
 REPAYMENTS_FILE = os.path.join(DATA_DIR, "repayments.json")
 
 
 def load_accounts():
-    """Return all accounts from the JSON file, or [] if none exist."""
-
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
 
@@ -56,15 +51,11 @@ def load_accounts():
 
 
 def save_accounts(accounts):
-    """Write the full accounts list to accounts.json."""
-
     with open(ACCOUNTS_FILE, "w") as file:
         json.dump(accounts, file, indent=4)
 
 
 def generate_account_id(accounts):
-    """Return the next account ID (highest existing + 1, starting from 1)."""
-
     if len(accounts) == 0:
         return 1
 
@@ -72,8 +63,6 @@ def generate_account_id(accounts):
 
 
 def load_transactions():
-    """Return all transactions from the JSON file, or [] if none exist."""
-
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
 
@@ -90,15 +79,11 @@ def load_transactions():
 
 
 def save_transactions(transactions):
-    """Write the full transactions list to transactions.json."""
-
     with open(TRANSACTIONS_FILE, "w") as file:
         json.dump(transactions, file, indent=4)
 
 
 def generate_transaction_id(transactions):
-    """Return the next transaction ID (highest existing + 1, starting from 1)."""
-
     if len(transactions) == 0:
         return 1
 
@@ -106,8 +91,6 @@ def generate_transaction_id(transactions):
 
 
 def load_categories():
-    """Return all categories from the JSON file, or [] if none exist."""
-
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
 
@@ -127,15 +110,11 @@ def load_categories():
 
 
 def save_categories(categories):
-    """Write the full categories list to categories.json."""
-
     with open(CATEGORIES_FILE, "w", encoding="utf-8") as file:
         json.dump(categories, file, indent=4)
 
 
 def generate_category_id(categories):
-    """Return the next category ID (highest existing + 1, starting from 1)."""
-
     if len(categories) == 0:
         return 1
 
@@ -143,8 +122,6 @@ def generate_category_id(categories):
 
 
 def load_debts():
-    """Return all debts from the JSON file, or [] if none exist."""
-
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
 
@@ -164,15 +141,11 @@ def load_debts():
 
 
 def save_debts(debts):
-    """Write the full debts list to debts.json."""
-
     with open(DEBTS_FILE, "w", encoding="utf-8") as file:
         json.dump(debts, file, indent=4)
 
 
 def generate_debt_id(debts):
-    """Return the next debt ID."""
-
     if len(debts) == 0:
         return 1
 
@@ -180,8 +153,6 @@ def generate_debt_id(debts):
 
 
 def load_repayments():
-    """Return all repayments from the JSON file, or [] if none exist."""
-
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
 
@@ -201,15 +172,11 @@ def load_repayments():
 
 
 def save_repayments(repayments):
-    """Write the full repayments list to repayments.json."""
-
     with open(REPAYMENTS_FILE, "w", encoding="utf-8") as file:
         json.dump(repayments, file, indent=4)
 
 
 def generate_repayment_id(repayments):
-    """Return the next repayment ID."""
-
     if len(repayments) == 0:
         return 1
 
@@ -217,8 +184,6 @@ def generate_repayment_id(repayments):
 
 
 def ensure_default_categories():
-    """Seed the system with default categories if the list is empty."""
-
     categories = load_categories()
     
     changed = False
@@ -256,7 +221,6 @@ def ensure_default_categories():
 
 
 def get_or_create_debt_categories():
-    """Ensure debt categories exist. Creates them if they don't, even if other categories exist."""
     categories = load_categories()
     
     debt_categories_to_ensure = [
@@ -270,7 +234,6 @@ def get_or_create_debt_categories():
     for name, type_ in debt_categories_to_ensure:
         exists = any(c["name"] == name and c["type"] == type_ and not c["is_deleted"] for c in categories)
         if not exists:
-            # Check if it exists but is deleted, then restore it
             restored = False
             for c in categories:
                 if c["name"] == name and c["type"] == type_ and c["is_deleted"]:
@@ -297,8 +260,6 @@ def get_or_create_debt_categories():
 
 
 def view_categories():
-    """Display all categories, grouped by type, sorted alphabetically."""
-
     print("\n--- View Categories ---")
 
     categories = load_categories()
@@ -334,8 +295,6 @@ def view_categories():
 
 
 def validate_category_name(name):
-    """Trim whitespace and return None if empty, else return trimmed name."""
-
     trimmed = name.strip()
     if len(trimmed) == 0:
         return None
@@ -343,8 +302,6 @@ def validate_category_name(name):
 
 
 def is_duplicate_category_name(categories, name, exclude_id=None):
-    """Case-insensitive uniqueness check globally across active categories."""
-
     name_lower = name.lower()
     for c in categories:
         if c["is_deleted"]:
@@ -357,8 +314,6 @@ def is_duplicate_category_name(categories, name, exclude_id=None):
 
 
 def select_category(categories, filter_fn, empty_message):
-    """Unified selection helper for categories."""
-
     filtered_categories = [c for c in categories if filter_fn(c)]
 
     if len(filtered_categories) == 0:
@@ -387,8 +342,6 @@ def select_category(categories, filter_fn, empty_message):
 
 
 def create_category(category_type):
-    """Create or restore a category of the specified type."""
-
     print(f"\n--- Add {category_type} Category ---")
 
     categories = load_categories()
@@ -440,8 +393,6 @@ def create_category(category_type):
 
 
 def rename_category():
-    """Rename a custom category."""
-
     print("\n--- Rename Category ---")
 
     categories = load_categories()
@@ -478,8 +429,6 @@ def rename_category():
 
 
 def delete_category():
-    """Soft delete a custom category after confirmation."""
-
     print("\n--- Delete Category ---")
 
     categories = load_categories()
@@ -502,8 +451,6 @@ def delete_category():
 
 
 def restore_category():
-    """Restore a deleted category."""
-
     print("\n--- Restore Category ---")
 
     categories = load_categories()
@@ -527,8 +474,6 @@ def restore_category():
 
 
 def is_duplicate_name(accounts, name):
-    """Case-insensitive check for duplicate account name."""
-
     for account in accounts:
         if account["name"].lower() == name.lower():
             return True
@@ -537,8 +482,6 @@ def is_duplicate_name(accounts, name):
 
 
 def get_valid_account_type():
-    """Prompt the user to pick an account type from the allowed list."""
-
     print("\nAvailable Account Types:")
     for i, account_type in enumerate(VALID_ACCOUNT_TYPES, start=1):
         print(f"  {i}. {account_type}")
@@ -560,8 +503,6 @@ def get_valid_account_type():
 
 
 def get_valid_balance():
-    """Prompt the user for a non-negative starting balance."""
-
     while True:
         balance_input = input("Enter starting balance: ").strip()
 
@@ -578,9 +519,35 @@ def get_valid_balance():
         return balance
 
 
-def select_account(accounts):
-    """Prompt the user to pick an account from a numbered list."""
+def get_valid_date(prompt_suffix="", min_date=None):
+    # Date validation
+    today = date.today()
+    prompt = f"Enter date (YYYY-MM-DD) [default {today}]{prompt_suffix}: "
 
+    while True:
+        date_input = input(prompt).strip()
+
+        if not date_input:
+            return str(today)
+
+        try:
+            parsed = date.fromisoformat(date_input)
+        except ValueError:
+            print("Invalid date format. Please enter a date in YYYY-MM-DD format.")
+            continue
+
+        if parsed > today:
+            print(f"Error: Date cannot be in the future. Today is {today}.")
+            continue
+
+        if min_date is not None and parsed < min_date:
+            print(f"Error: Date cannot be earlier than the debt creation date ({min_date}).")
+            continue
+
+        return date_input
+
+
+def select_account(accounts):
     sorted_accounts = sorted(accounts, key=lambda a: a["account_id"])
 
     print("\nSelect an account:")
@@ -603,32 +570,8 @@ def select_account(accounts):
         return sorted_accounts[choice_number - 1]
 
 
-def get_valid_transaction_type():
-    """Prompt the user to pick a transaction type from the allowed list."""
-
-    print("\nTransaction Types:")
-    for i, transaction_type in enumerate(VALID_TRANSACTION_TYPES, start=1):
-        print(f"  {i}. {transaction_type}")
-
-    while True:
-        choice = input("Enter the number of your transaction type: ").strip()
-
-        if not choice.isdigit():
-            print("Please enter a valid number.")
-            continue
-
-        choice_number = int(choice)
-
-        if choice_number < 1 or choice_number > len(VALID_TRANSACTION_TYPES):
-            print(f"Please enter a number between 1 and {len(VALID_TRANSACTION_TYPES)}.")
-            continue
-
-        return VALID_TRANSACTION_TYPES[choice_number - 1]
-
 
 def get_valid_amount(transaction_type, balance):
-    """Prompt the user for a valid transaction amount."""
-
     while True:
         amount_input = input("Enter amount: ").strip()
 
@@ -650,8 +593,6 @@ def get_valid_amount(transaction_type, balance):
 
 
 def add_account():
-    """Create and save a new account via CLI prompts."""
-
     print("\n--- Add New Account ---")
 
     accounts = load_accounts()
@@ -691,14 +632,10 @@ def add_account():
 
 
 def format_currency(amount):
-    """Format a number as ₹ currency. Example: 15000 → '₹15,000.00'"""
-
     return f"₹{amount:,.2f}"
 
 
 def format_transaction_amount(amount, transaction_type):
-    """Format amount with +/- sign and ₹ symbol. Example: 500, 'Expense' → '-₹500.00'"""
-
     if transaction_type == "Income":
         return f"+₹{amount:,.2f}"
 
@@ -706,8 +643,6 @@ def format_transaction_amount(amount, transaction_type):
 
 
 def validate_transaction(transaction):
-    """Check if a single transaction record is valid for display."""
-
     if not isinstance(transaction, dict):
         return False
 
@@ -745,8 +680,6 @@ def validate_transaction(transaction):
 
 
 def get_account_name(account_id, accounts):
-    """Resolve an account_id to its name, or 'Deleted Account' if not found."""
-
     for account in accounts:
         if account["account_id"] == account_id:
             return account["name"]
@@ -755,8 +688,6 @@ def get_account_name(account_id, accounts):
 
 
 def get_category_name(category_id, categories):
-    """Resolve a category_id to its display name, with deleted/unknown handling."""
-
     for category in categories:
         if category["category_id"] == category_id:
             if category["is_deleted"]:
@@ -767,8 +698,6 @@ def get_category_name(category_id, categories):
 
 
 def select_transaction_category(transaction_type):
-    """Present active categories matching the transaction type and return the selection."""
-
     categories = load_categories()
 
     def filter_fn(c):
@@ -785,8 +714,6 @@ def select_transaction_category(transaction_type):
 
 
 def display_transaction_table(transactions, accounts, categories):
-    """Print formatted transaction table with header and rows."""
-
     header = f"  {'ID':<6}{'Date':<13}{'Type':<11}{'Account':<20}{'Category':<20}{'Amount':>15}  {'Description'}"
     print(f"\n{header}")
     print("  " + "-" * (len(header) - 2))
@@ -817,8 +744,6 @@ def display_transaction_table(transactions, accounts, categories):
 
 
 def display_accounts_summary(accounts):
-    """Print account count and total balance."""
-
     total_accounts = len(accounts)
     total_balance = sum(account["balance"] for account in accounts)
 
@@ -827,8 +752,6 @@ def display_accounts_summary(accounts):
 
 
 def view_accounts():
-    """Display all accounts in a formatted table. Read-only."""
-
     print("\n--- View Accounts ---")
 
     accounts = load_accounts()
@@ -855,8 +778,6 @@ def view_accounts():
 
 
 def _add_transaction(transaction_type):
-    """Record a new transaction of the specified type (Income or Expense)."""
-
     print(f"\n--- Add {transaction_type} ---")
 
     ensure_default_categories()
@@ -897,6 +818,9 @@ def _add_transaction(transaction_type):
     else:
         new_balance = round(old_balance - amount, 2)
 
+    old_transactions = copy.deepcopy(transactions)
+    old_accounts = copy.deepcopy(accounts)
+
     account["balance"] = new_balance
 
     new_transaction = {
@@ -910,36 +834,36 @@ def _add_transaction(transaction_type):
     }
 
     transactions.append(new_transaction)
-    save_transactions(transactions)
-    save_accounts(accounts)
 
-    print("\nTransaction recorded successfully!")
-    print(f"  ID:               {new_transaction['transaction_id']}")
-    print(f"  Account:          {account['name']}")
-    print(f"  Type:             {new_transaction['type']}")
-    print(f"  Category:         {category['name']}")
-    print(f"  Amount:           {format_currency(new_transaction['amount'])}")
-    print(f"  Description:      {new_transaction['description']}")
-    print(f"  Date:             {new_transaction['date']}")
-    print(f"  Previous Balance: {format_currency(old_balance)}")
-    print(f"  New Balance:      {format_currency(new_balance)}")
+    try:
+        save_transactions(transactions)
+        save_accounts(accounts)
+        print("\nTransaction recorded successfully!")
+        print(f"  ID:               {new_transaction['transaction_id']}")
+        print(f"  Account:          {account['name']}")
+        print(f"  Type:             {new_transaction['type']}")
+        print(f"  Category:         {category['name']}")
+        print(f"  Amount:           {format_currency(new_transaction['amount'])}")
+        print(f"  Description:      {new_transaction['description']}")
+        print(f"  Date:             {new_transaction['date']}")
+        print(f"  Previous Balance: {format_currency(old_balance)}")
+        print(f"  New Balance:      {format_currency(new_balance)}")
+    except Exception as e:
+        save_transactions(old_transactions)
+        save_accounts(old_accounts)
+        print(f"\nSystem error during transaction creation: {e}")
+        print("Transaction creation aborted. No changes were saved.")
 
 
 def add_income():
-    """Entry point for adding an income transaction."""
-
     _add_transaction("Income")
 
 
 def add_expense():
-    """Entry point for adding an expense transaction."""
-
     _add_transaction("Expense")
 
 
 def view_transactions():
-    """Display all transactions in a formatted table. Read-only."""
-
     print("\n--- View Transactions ---")
 
     transactions = load_transactions()
@@ -992,8 +916,6 @@ def view_transactions():
 
 
 def format_signed_currency(amount):
-    """Format currency with a + sign for positive values."""
-
     if amount > 0:
         return f"+{format_currency(amount)}"
 
@@ -1004,14 +926,10 @@ def format_signed_currency(amount):
 
 
 def get_valid_transactions(transactions):
-    """Return only transaction records that are safe to calculate and display."""
-
     return [transaction for transaction in transactions if validate_transaction(transaction)]
 
 
 def calculate_total_balance(accounts):
-    """Return the combined balance across all accounts."""
-
     if not isinstance(accounts, list):
         return 0.0
 
@@ -1024,8 +942,6 @@ def calculate_total_balance(accounts):
 
 
 def calculate_income_expense_summary(transactions):
-    """Return total income, total expenses, and net cash flow."""
-
     valid_transactions = get_valid_transactions(transactions)
     total_income = 0.0
     total_expenses = 0.0
@@ -1044,8 +960,6 @@ def calculate_income_expense_summary(transactions):
 
 
 def calculate_account_summary(accounts):
-    """Return accounts sorted by balance from highest to lowest."""
-
     if not isinstance(accounts, list):
         return []
         
@@ -1058,8 +972,6 @@ def calculate_account_summary(accounts):
 
 
 def calculate_debt_summary(debts):
-    """Return debt totals and counts for active and closed debts."""
-
     total_lent_remaining = 0.0
     total_borrowed_remaining = 0.0
     active_count = 0
@@ -1092,8 +1004,6 @@ def calculate_debt_summary(debts):
 
 
 def calculate_top_expense_categories(transactions):
-    """Return the top 3 expense category totals."""
-
     valid_transactions = get_valid_transactions(transactions)
     category_totals = {}
 
@@ -1117,8 +1027,6 @@ def calculate_top_expense_categories(transactions):
 
 
 def get_recent_transactions(transactions):
-    """Return the latest 5 valid transactions."""
-
     valid_transactions = get_valid_transactions(transactions)
 
     return sorted(
@@ -1129,14 +1037,10 @@ def get_recent_transactions(transactions):
 
 
 def calculate_net_debt_position(total_lent_remaining, total_borrowed_remaining):
-    """Return money owed to you minus money you owe."""
-
     return round(total_lent_remaining - total_borrowed_remaining, 2)
 
 
 def show_dashboard():
-    """Display a read-only high-level financial overview."""
-
     print("\n--- Dashboard ---")
 
     accounts = load_accounts()
@@ -1342,18 +1246,13 @@ def add_debt():
     purpose = input("Enter purpose (optional): ").strip()
     notes = input("Enter notes (optional): ").strip()
     
-    date_str = input(f"Enter date (YYYY-MM-DD) [default {date.today()}]: ").strip()
-    if not date_str:
-        date_str = str(date.today())
-    else:
-        try:
-            date.fromisoformat(date_str)
-        except ValueError:
-            print("Invalid date format. Using today's date.")
-            date_str = str(date.today())
+    date_str = get_valid_date()
             
     transactions = load_transactions()
-    
+    old_transactions = copy.deepcopy(transactions)
+    old_accounts = copy.deepcopy(accounts)
+    old_debts = copy.deepcopy(debts)
+
     transaction_id = create_debt_transaction(
         transactions, account, debt_type, amount, person_name, purpose, date_str
     )
@@ -1372,12 +1271,18 @@ def add_debt():
         "created_date": date_str
     }
     debts.append(new_debt)
-    
-    save_transactions(transactions)
-    save_accounts(accounts)
-    save_debts(debts)
-    
-    print("\nDebt recorded successfully!")
+
+    try:
+        save_transactions(transactions)
+        save_accounts(accounts)
+        save_debts(debts)
+        print("\nDebt recorded successfully!")
+    except Exception as e:
+        save_transactions(old_transactions)
+        save_accounts(old_accounts)
+        save_debts(old_debts)
+        print(f"\nSystem error during debt creation: {e}")
+        print("Debt creation aborted. No changes were saved.")
 
 
 def view_debts():
@@ -1448,22 +1353,11 @@ def add_repayment():
         
     account = select_account(accounts)
     
-    date_str = input(f"Enter repayment date (YYYY-MM-DD) [default {date.today()}]: ").strip()
-    if not date_str:
-        date_str = str(date.today())
-    else:
-        try:
-            date.fromisoformat(date_str)
-        except ValueError:
-            print("Invalid date format. Using today's date.")
-            date_str = str(date.today())
-            
-    repayment_date = date.fromisoformat(date_str)
     debt_date = date.fromisoformat(selected_debt["created_date"])
-    
-    if repayment_date < debt_date:
-        print(f"\nError: Repayment date ({date_str}) cannot be earlier than debt creation date ({selected_debt['created_date']}).")
-        return
+    date_str = get_valid_date(
+        prompt_suffix=f", not before {selected_debt['created_date']}",
+        min_date=debt_date
+    )
         
     while True:
         amount_str = input("Enter repayment amount: ").strip()
@@ -1489,7 +1383,6 @@ def add_repayment():
                 print("Cancelled.")
                 return
                 
-        # Optional: block paying back if balance < amount
         if selected_debt["type"] == "BORROWED" and amount > account["balance"]:
             print(f"\nError: Insufficient balance in {account['name']} to pay {format_currency(amount)}.")
             return
@@ -1497,12 +1390,17 @@ def add_repayment():
         break
         
     transactions = load_transactions()
-    
+    repayments = load_repayments()
+
+    old_transactions = copy.deepcopy(transactions)
+    old_accounts = copy.deepcopy(accounts)
+    old_debts = copy.deepcopy(debts)
+    old_repayments = copy.deepcopy(repayments)
+
     transaction_id = create_repayment_transaction(
         transactions, account, selected_debt, amount, date_str
     )
-    
-    repayments = load_repayments()
+
     new_repayment = {
         "repayment_id": generate_repayment_id(repayments),
         "debt_id": selected_debt["debt_id"],
@@ -1512,38 +1410,24 @@ def add_repayment():
         "date": date_str
     }
     repayments.append(new_repayment)
-    
+
     selected_debt["remaining_amount"] = round(selected_debt["remaining_amount"] - amount, 2)
     update_debt_status(selected_debt)
-        
-    save_transactions(transactions)
-    save_accounts(accounts)
-    save_debts(debts)
-    save_repayments(repayments)
-    
-    print("\nRepayment recorded successfully!")
 
-def delete_linked_transaction(transaction_id):
-    transactions = load_transactions()
-    accounts = load_accounts()
-    
-    trans_to_delete = None
-    for i, t in enumerate(transactions):
-        if t["transaction_id"] == transaction_id:
-            trans_to_delete = t
-            del transactions[i]
-            break
-            
-    if trans_to_delete:
-        for account in accounts:
-            if account["account_id"] == trans_to_delete["account_id"]:
-                if trans_to_delete["type"] == "Income":
-                    account["balance"] = round(account["balance"] - trans_to_delete["amount"], 2)
-                else:
-                    account["balance"] = round(account["balance"] + trans_to_delete["amount"], 2)
-                break
+    try:
         save_transactions(transactions)
         save_accounts(accounts)
+        save_debts(debts)
+        save_repayments(repayments)
+        print("\nRepayment recorded successfully!")
+    except Exception as e:
+        save_transactions(old_transactions)
+        save_accounts(old_accounts)
+        save_debts(old_debts)
+        save_repayments(old_repayments)
+        print(f"\nSystem error during repayment creation: {e}")
+        print("Repayment creation aborted. No changes were saved.")
+
 
 def delete_repayment():
     print("\n--- Delete Repayment ---")
@@ -1567,7 +1451,7 @@ def delete_repayment():
             continue
         idx = int(choice) - 1
         if 0 <= idx < len(repayments):
-            selected_rep = repayments.pop(idx)
+            selected_rep = repayments[idx]
             break
         print("Invalid selection.")
         
@@ -1575,9 +1459,33 @@ def delete_repayment():
     if confirm.lower() != 'y':
         print("Deletion cancelled.")
         return
-        
-    delete_linked_transaction(selected_rep["transaction_id"])
-    
+
+    transactions = load_transactions()
+    accounts = load_accounts()
+
+    old_transactions = copy.deepcopy(transactions)
+    old_accounts = copy.deepcopy(accounts)
+    old_debts = copy.deepcopy(debts)
+    old_repayments = copy.deepcopy(repayments)
+
+    trans_to_delete = None
+    for i, t in enumerate(transactions):
+        if t["transaction_id"] == selected_rep["transaction_id"]:
+            trans_to_delete = t
+            del transactions[i]
+            break
+
+    if trans_to_delete:
+        for account in accounts:
+            if account["account_id"] == trans_to_delete["account_id"]:
+                if trans_to_delete["type"] == "Income":
+                    account["balance"] = round(account["balance"] - trans_to_delete["amount"], 2)
+                else:
+                    account["balance"] = round(account["balance"] + trans_to_delete["amount"], 2)
+                break
+
+    repayments.pop(idx)
+
     debt = next((d for d in debts if d["debt_id"] == selected_rep["debt_id"]), None)
     if debt:
         debt["remaining_amount"] = round(debt["remaining_amount"] + selected_rep["amount"], 2)
@@ -1585,10 +1493,20 @@ def delete_repayment():
             debt["remaining_amount"] = debt["original_amount"]
         if debt["status"] == "CLOSED":
             debt["status"] = "ACTIVE"
-            
-    save_debts(debts)
-    save_repayments(repayments)
-    print("\nRepayment deleted successfully.")
+
+    try:
+        save_transactions(transactions)
+        save_accounts(accounts)
+        save_debts(debts)
+        save_repayments(repayments)
+        print("\nRepayment deleted successfully.")
+    except Exception as e:
+        save_transactions(old_transactions)
+        save_accounts(old_accounts)
+        save_debts(old_debts)
+        save_repayments(old_repayments)
+        print(f"\nSystem error during repayment deletion: {e}")
+        print("Repayment deletion aborted. No changes were saved.")
 
 def delete_debt():
     print("\n--- Delete Debt ---")
@@ -1624,11 +1542,41 @@ def delete_debt():
         print("Deletion cancelled.")
         return
         
-    delete_linked_transaction(selected_debt["transaction_id"])
-    
+    transactions = load_transactions()
+    accounts = load_accounts()
+    old_transactions = copy.deepcopy(transactions)
+    old_accounts = copy.deepcopy(accounts)
+    old_debts = copy.deepcopy(debts)
+
+    trans_to_delete = None
+    for i, t in enumerate(transactions):
+        if t["transaction_id"] == selected_debt["transaction_id"]:
+            trans_to_delete = t
+            del transactions[i]
+            break
+
+    if trans_to_delete:
+        for account in accounts:
+            if account["account_id"] == trans_to_delete["account_id"]:
+                if trans_to_delete["type"] == "Income":
+                    account["balance"] = round(account["balance"] - trans_to_delete["amount"], 2)
+                else:
+                    account["balance"] = round(account["balance"] + trans_to_delete["amount"], 2)
+                break
+
     debts.remove(selected_debt)
-    save_debts(debts)
-    print("\nDebt deleted successfully.")
+
+    try:
+        save_transactions(transactions)
+        save_accounts(accounts)
+        save_debts(debts)
+        print("\nDebt deleted successfully.")
+    except Exception as e:
+        save_transactions(old_transactions)
+        save_accounts(old_accounts)
+        save_debts(old_debts)
+        print(f"\nSystem error during debt deletion: {e}")
+        print("Debt deletion aborted. No changes were saved.")
 
 def view_repayments():
     print("\n--- View Repayments ---")
@@ -1656,7 +1604,6 @@ def view_repayments():
         print(f"  {r['repayment_id']:<7}{r['date']:<13}{p_name:<15}{d_type:<11}{amt:>12}  {acct_name:<15}{r['debt_id']}")
 
 def manage_debts():
-    """Debt tracking submenu."""
     while True:
         print("\n--- Manage Debts ---")
         print("1. View Debts")
@@ -1688,7 +1635,6 @@ def manage_debts():
 
 
 def is_account_referenced_by_transfers(account_id):
-    """Helper for future feature: check if an account is part of any transfer."""
     transactions = load_transactions()
     for t in transactions:
         if t["type"] == "Transfer":
@@ -1698,7 +1644,6 @@ def is_account_referenced_by_transfers(account_id):
 
 
 def transfer_money():
-    """Transfer money between two different accounts."""
     print("\n--- Transfer Money ---")
     
     accounts = load_accounts()
@@ -1767,7 +1712,6 @@ def transfer_money():
     transactions = load_transactions()
     old_transactions = copy.deepcopy(transactions)
 
-    # Execute transfer atomically
     from_account["balance"] = round(from_account["balance"] - amount, 2)
     to_account["balance"] = round(to_account["balance"] + amount, 2)
     
@@ -1783,7 +1727,6 @@ def transfer_money():
     
     transactions.append(new_transaction)
     
-    # Save all updates
     try:
         save_transactions(transactions)
         save_accounts(accounts)
@@ -1796,7 +1739,6 @@ def transfer_money():
 
 
 def delete_transfer():
-    """Delete a transfer and safely reverse balances."""
     print("\n--- Delete Transfer ---")
     
     transactions = load_transactions()
@@ -1813,7 +1755,6 @@ def delete_transfer():
     print(f"\n{header}")
     print("  " + "-" * (len(header) - 2))
     
-    # Sort for display, latest first
     sorted_transfers = sorted(transfers, key=lambda t: (t["date"], t["transaction_id"]), reverse=True)
     
     for i, t in enumerate(sorted_transfers, start=1):
@@ -1855,13 +1796,11 @@ def delete_transfer():
     old_accounts = copy.deepcopy(accounts)
     old_transactions = copy.deepcopy(transactions)
 
-    # Reverse balances
     if from_account:
         from_account["balance"] = round(from_account["balance"] + selected_transfer["amount"], 2)
     if to_account:
         to_account["balance"] = round(to_account["balance"] - selected_transfer["amount"], 2)
         
-    # Remove transaction
     for idx_t, t in enumerate(transactions):
         if t["transaction_id"] == selected_transfer["transaction_id"]:
             del transactions[idx_t]
@@ -1879,8 +1818,6 @@ def delete_transfer():
 
 
 def manage_categories():
-    """Category submenu loop."""
-
     ensure_default_categories()
 
     while True:
@@ -1914,8 +1851,6 @@ def manage_categories():
 
 
 def main():
-    """Main menu loop."""
-
     print("=" * 45)
     print("   Welcome to Expense Intelligence System")
     print("=" * 45)

@@ -35,15 +35,18 @@ Allow users to create financial accounts (Cash, Bank, UPI, Investment, Credit Ca
 
 ## Flow
 
-1. `main()` shows a menu with "Add Account" and "Exit"
-2. User picks "Add Account" → `add_account()` is called
-3. Existing accounts are loaded from JSON
-4. User enters a name → rejected if empty or duplicate
-5. User picks an account type from a numbered list → rejected if invalid
-6. User enters a balance → rejected if non-numeric or negative
-7. A dictionary is built with all 5 fields (ID, name, type, balance, date)
-8. Dictionary is appended to the list → full list is saved to JSON
-9. Confirmation is printed → control returns to the menu
+1. User selects "Add Account" from the main menu.
+2. User enters an account name.
+3. System validates: account name is not empty
+4. account name is unique (case-insensitive)
+5. User selects an account type.
+6. User enters a starting balance.
+7. System validates that the balance is not negative.
+8. Account ID is generated automatically.
+9. Account record is created.
+10. Account is saved to `accounts.json`.
+11. Success confirmation is displayed.
+12. Control returns to the main menu.
 
 ---
 
@@ -162,6 +165,7 @@ Allow users to record Income and Expense transactions against a selected account
 
 - Account must exist before creating a transaction
 - Transaction type must be Income or Expense
+- Transaction must be assigned an active category matching the transaction type
 - Amount must be greater than zero
 - Expense amount cannot exceed account balance
 - Description cannot be empty
@@ -171,6 +175,7 @@ Allow users to record Income and Expense transactions against a selected account
 - Transactions are saved in `transactions.json`
 - Updated balances are saved in `accounts.json`
 - If an account has a balance of exactly zero, expenses are blocked immediately
+- Financial writes use rollback-safe atomic save protection
 
 ---
 
@@ -182,26 +187,28 @@ Allow users to record Income and Expense transactions against a selected account
 | `save_transactions(transactions)` | Write the full transactions list back to JSON | Centralizes file writing for transaction records persistence |
 | `generate_transaction_id(transactions)` | Return the next unique ID | Transaction IDs must auto-increment without user input |
 | `select_account(accounts)` | Show accounts with balances and validate selection | Links the transaction to a specific account; reusable for transfers |
-| `get_valid_transaction_type()` | Show allowed types and validate choice | Rejects invalid input in a loop until Income/Expense is chosen |
+| `select_transaction_category(transaction_type)` | Show only valid categories for the chosen transaction type | Keeps transaction categories aligned with the current schema and hides debt categories |
 | `get_valid_amount(transaction_type, balance)` | Prompt for positive number; checks balance for expenses | Rejects invalid or insufficient amounts dynamically based on type |
-| `add_transaction()` | Orchestrate the full transaction workflow | Coordinates load → validate → calculate → save in one place |
+| `add_income()` | Entry point for the Income flow | Routes the menu choice into the shared transaction helper |
+| `add_expense()` | Entry point for the Expense flow | Routes the menu choice into the shared transaction helper |
+| `_add_transaction(transaction_type)` | Orchestrate the full transaction workflow | Coordinates load → validate → calculate → save in one place |
 
 ---
 
 ## Flow
 
-1. `main()` shows menu with "Add Transaction" as option 3
-2. User picks "Add Transaction" → `add_transaction()` is called
-3. Accounts are loaded; if none exist, print message and exit
-4. Transactions are loaded via `load_transactions()`
+1. `main()` shows menu options for "Add Income" and "Add Expense"
+2. User picks one option → `add_income()` or `add_expense()` calls `_add_transaction()`
+3. Default categories are seeded if needed
+4. Accounts are loaded; if none exist, print message and exit
 5. User selects an account via `select_account()`
-6. User picks transaction type via `get_valid_transaction_type()`
+6. User selects a matching active category via `select_transaction_category()`
 7. If type is Expense and account balance is zero, print message and exit
 8. User enters transaction amount via `get_valid_amount()`
 9. User enters description → rejected if empty
 10. `old_balance` is saved; `new_balance` is calculated and rounded to 2 decimals
 11. Transaction record is created and appended to transaction list
-12. Transactions are saved to `transactions.json` and updated accounts to `accounts.json`
+12. Transactions and accounts are saved inside an atomic `try/except` block with rollback copies
 13. Confirmation with details (previous vs new balance) is printed
 
 ---
@@ -234,21 +241,16 @@ Allow users to record Income and Expense transactions against a selected account
 
 ## Known Limitations (V1)
 
-- Cannot view transactions
 - Cannot edit transactions (no balance reversal logic)
 - Cannot delete transactions (no balance reversal logic)
-- No transaction categories (all transactions are uncategorized)
-- No transfers between accounts
+- No transaction search or filtering
 - No reports or summaries of transaction history
 
 ---
 
 ## Future Improvements
 
-- Transaction categories (e.g., Food, Travel)
-- View transactions in a tabular format
 - Edit and delete transaction options
-- Support transfers between accounts
 - Transaction search and date filtering
 - Monthly or category-wise expense reports
 
@@ -269,11 +271,11 @@ Allow users to view all historical transactions in a formatted CLI table with a 
 - All transactions are displayed — no filtering, no search, no pagination
 - Transactions are sorted by date (newest → oldest)
 - If dates are equal, sorted by transaction ID (highest → lowest) for deterministic ordering
-- Display columns: Transaction ID, Date, Type, Account, Amount, Description
+- Display columns: Transaction ID, Date, Type, Account, Category, Amount, Description
 - Account names are resolved from `account_id` using `accounts.json`
 - If a transaction references an `account_id` that no longer exists, display "Deleted Account"
 - Income amounts displayed as `+₹1,000.00`, Expense amounts as `-₹500.00`
-- Type column is kept even though amount has +/- signs (future Transfer type will need it)
+- Type column is kept because Transfer rows share the same table and need explicit labeling
 - Summary shows Total Income and Total Expense below the table
 - Invalid records are skipped — not displayed, not included in summary calculations
 - Aggregated count of invalid records is shown (e.g., "Skipped 3 invalid transaction records.")
@@ -290,8 +292,9 @@ Allow users to view all historical transactions in a formatted CLI table with a 
 | `format_transaction_amount(amount, transaction_type)` | Format amount with `+`/`-` sign and `₹` symbol | Separate from `format_currency()` because existing call sites (balances, summaries) don't need signs — avoids breaking 4 existing usages |
 | `validate_transaction(transaction)` | Check if a single record has all required keys and valid values | Catches missing keys, invalid types ("Banana"), non-numeric amounts, empty descriptions, and empty dates before they cause silent errors |
 | `get_account_name(account_id, accounts)` | Resolve an `account_id` to an account name via linear scan | Returns "Deleted Account" if no match — handles deleted accounts gracefully without crashing |
-| `display_transaction_table(transactions, accounts)` | Print formatted table header and all transaction rows | Contains per-row logic (two helper calls + column formatting) — enough complexity to extract from the orchestrator |
-| `view_transactions()` | Orchestrate: load → empty check → load accounts → validate → sort → display → summarize | Same orchestrator pattern as `add_transaction()` and `view_accounts()` |
+| `get_category_name(category_id, categories)` | Resolve a `category_id` to a category name via linear scan | Keeps renamed and deleted categories readable without rewriting old transactions |
+| `display_transaction_table(transactions, accounts, categories)` | Print formatted table header and all transaction rows | Contains per-row logic (account lookup, category lookup, and column formatting) — enough complexity to extract from the orchestrator |
+| `view_transactions()` | Orchestrate: load → empty check → load accounts/categories → validate → sort → display → summarize | Same orchestrator pattern as the add and view flows |
 
 ---
 
@@ -301,12 +304,12 @@ Allow users to view all historical transactions in a formatted CLI table with a 
 2. User picks "View Transactions" → `view_transactions()` is called
 3. Transactions are loaded from JSON via `load_transactions()` (reused from Feature 3)
 4. If the list is empty → print "No transactions found." and return (accounts are NOT loaded)
-5. Accounts are loaded from JSON via `load_accounts()` (deferred until needed)
+5. Accounts and categories are loaded from JSON (deferred until needed)
 6. Each transaction is validated via `validate_transaction()` — separated into valid and invalid lists
 7. If any invalid records found → print "Skipped N invalid transaction record(s)."
 8. If no valid records remain → print empty-state message and return
 9. Valid transactions are sorted inline using `sorted()` — date descending, then transaction ID descending
-10. `display_transaction_table()` prints the header and each row with resolved account names and signed amounts
+10. `display_transaction_table()` prints the header and each row with resolved account names, category names, and signed amounts
 11. Total Income and Total Expense are calculated from valid transactions using `sum()` with generator expressions
 12. Summary is printed using `format_currency()` — control returns to the menu
 
@@ -323,8 +326,8 @@ Allow users to view all historical transactions in a formatted CLI table with a 
 - `round(value, 2)` — prevents floating-point drift when summing many decimal amounts
 - f-string alignment — `:<6` for left-aligned, `:>15` for right-aligned columns in fixed-width table output
 - List filtering with a loop — building `valid_transactions` by appending only records that pass validation
-- Helper functions as pure functions — `validate_transaction()`, `get_account_name()`, and `format_transaction_amount()` have no side effects; they take input and return output
-- Constants as a single source of truth — `REQUIRED_TRANSACTION_KEYS` and `VALID_TRANSACTION_TYPES` used by both input validation (Feature 3) and display validation (Feature 4)
+- Helper functions as pure functions — `validate_transaction()`, `get_account_name()`, `get_category_name()`, and `format_transaction_amount()` have no side effects; they take input and return output
+- Constants as a single source of truth — `REQUIRED_TRANSACTION_KEYS` and `VALID_TRANSACTION_TYPES` keep transaction validation aligned with the current schema, including Transfer records
 
 **Software development concepts:**
 - Data validation beyond key presence — checking that values are correct (type is Income/Expense, amount is numeric, description is non-empty) prevents silently incorrect summaries
@@ -336,7 +339,7 @@ Allow users to view all historical transactions in a formatted CLI table with a 
 - Graceful error handling — deleted accounts show "Deleted Account" instead of crashing; empty states show friendly messages
 - Deterministic sorting — using a secondary sort key (transaction ID) ensures identical output every time, even when dates are equal
 - Reusability — `format_currency()` from Feature 2 is reused for summary totals; `load_transactions()` and `load_accounts()` from earlier features are reused
-- Single source of truth — transaction type validation uses the same `VALID_TRANSACTION_TYPES` constant as `get_valid_transaction_type()`; adding "Transfer" later requires changing only the constant
+- Single source of truth — `VALID_TRANSACTION_TYPES` keeps transaction validation aligned with the current schema, including Transfer records
 
 ---
 
@@ -346,7 +349,6 @@ Allow users to view all historical transactions in a formatted CLI table with a 
 - No search functionality
 - No pagination — all transactions displayed at once
 - Long descriptions may push table rows beyond terminal width — won't crash, just looks off
-- No category support — all transactions are uncategorized
 - No edit or delete transaction support
 - Indian numbering system (lakh/crore) not implemented — uses standard comma formatting
 
@@ -356,8 +358,8 @@ Allow users to view all historical transactions in a formatted CLI table with a 
 
 - Filter transactions by date range, type, or account
 - Search transactions by description keyword
-- Category-based views (once categories are implemented)
-- Support Transfer transaction type (between accounts)
+- Category-based filtering
+- Transfer-specific filtering
 - Monthly or category-wise expense reports
 - Analytics dashboard with spending trends
 - Pagination for large transaction lists
@@ -493,7 +495,6 @@ Allow users to manage transaction categories via a CLI submenu. This feature est
 
 ## Known Limitations (V1)
 
-- Transactions do not yet use `category_id` (Feature 6 will integrate this)
 - Category names can theoretically be very long, potentially misaligning the display table
 - Categories cannot be merged (e.g., combining "Gym" and "Fitness" into a single category is not supported)
 - No pagination for category views if the list becomes massive
@@ -502,7 +503,6 @@ Allow users to manage transaction categories via a CLI submenu. This feature est
 
 ## Future Improvements
 
-- Integrate categories into the `add_transaction()` flow
 - Spending analysis and pie charts grouped by category
 - Income analysis reports
 - Analytics dashboard with AI insights leveraging globally unique category names
@@ -658,8 +658,10 @@ A single debt is permanently tied to the exact account that funded or received i
 ### Date Rules
 
 * **Default to today's date:** If left blank, the system uses the current date.
-* **User may change date:** The user can backdate a debt or repayment.
-* **Repayment date validation:** A repayment date cannot be chronologically before the debt's original creation date.
+* **Debt creation dates cannot be in the future.**
+* **Repayment dates cannot be in the future.**
+* **Repayment dates cannot be earlier than the debt creation date.**
+* **Users may enter valid historical dates.**
 
 ### Repayment Rules
 
@@ -679,6 +681,13 @@ If a user tries to repay more than the remaining balance, the system detects the
 
 * **Debt Deletion:** A debt cannot be deleted if any repayment history exists. Repayments must be deleted first.
 * **Repayment Deletion:** Deleting a repayment perfectly reverses its effects: the linked transaction is removed, the account balance is restored, and the debt's remaining amount is increased. If the debt was CLOSED, it automatically re-opens as ACTIVE.
+
+### Atomic Save Protection
+
+* **Debt Creation:** Deep copies of transactions, accounts, and debts are stored before the save block so a failed write can be rolled back safely.
+* **Repayment Creation:** Deep copies of transactions, accounts, debts, and repayments are stored before the save block so a failed write can be rolled back safely.
+* **Repayment Deletion:** The previous transactions, accounts, debts, and repayments are restored if any save fails.
+* **Debt Deletion:** The previous transactions, accounts, and debts are restored if any save fails.
 
 ### Data Integrity Rules
 
@@ -739,7 +748,6 @@ If a user tries to repay more than the remaining balance, the system detects the
 * `create_repayment_transaction()`
 * `update_debt_status()`
 * `find_active_debts_by_person()`
-* `delete_linked_transaction()`
 
 ### Functions Modified
 
@@ -765,20 +773,20 @@ Purpose
 ↓
 Notes
 ↓
-Date
+Date (future dates blocked)
 ↓
-Save
+Save Atomically
 
 ### Record Repayment
 Select Debt
 ↓
 Select Account
 ↓
+Date (future dates blocked, not before debt creation)
+↓
 Repayment Amount
 ↓
-Date
-↓
-Save
+Save Atomically
 
 ### Delete Repayment
 Select Repayment
@@ -788,17 +796,21 @@ Confirm
 Reverse Transaction
 ↓
 Restore Debt Balance
+↓
+Save Atomically
 
 ### Delete Debt
 Select Debt
 ↓
 Check Repayment History
 ↓
-Delete Linked Transaction
+Reverse Linked Transaction
 ↓
 Restore Account Balance
 ↓
 Delete Debt
+↓
+Save Atomically
 
 ---
 
@@ -840,6 +852,7 @@ Delete Debt
 * **Soft accounting principles:** Grasping that LENT money acts as an "Expense" against your current liquid balance, and BORROWED money acts as "Income" to your current liquid balance.
 * **Data normalization:** Storing entities (Debts vs Repayments) in their own discrete flat lists rather than deeply nesting them, making the logic code easier to read and scale.
 * **Designing business rules before coding:** Realizing that identifying edge cases (like overpayments, date paradoxes, and debt merging logic) *before* writing code prevents massive structural refactoring later.
+* **Rollback protection:** Backing up all related lists before destructive debt operations prevents partial file writes from corrupting account balances or debt state.
 
 ---
 
@@ -1161,8 +1174,8 @@ Save Updates Atomically
 
 ## Review Improvements
 
-* **Fixed date validation:** Switched from silently overwriting invalid inputs with today's date to a strict loop, forcing the user to provide correctly formatted ISO data.
-* **Added future date validation:** Specifically blocked future dates to ensure transactions reflect real, resolved history rather than predicted events.
+* **Fixed date validation:** Blank input still defaults to today, while invalid or future dates are rejected in a strict loop.
+* **Added future date validation:** Specifically blocked future dates so transfer history stays real and chronological.
 * **Added rollback protection:** Backups of memory state are now taken immediately before execution, allowing safe aborts on I/O failure.
 * **Improved atomic execution:** Linked the `save_transactions` and `save_accounts` methods in a unified `try/except` block to prevent half-writes.
 * **Fixed dashboard wording:** Updated "Active Account Count" to "Total Account Count" because the system does not track inactive accounts.
@@ -1180,3 +1193,32 @@ Save Updates Atomically
 * Multi-currency support
 * Bank integration
 
+---
+
+# Post-Development Refactoring & Stability Improvements
+
+## Major Bugs Fixed
+
+* Future dates are now rejected in transfer and debt/repayment flows.
+* Repayment date checks now respect the debt creation date.
+* Transfer deletion and debt/repayment deletion now reverse balances safely.
+* Invalid transaction records are skipped cleanly instead of breaking summaries.
+
+## Atomic Save Improvements
+
+* Multi-file financial writes now use deep-copied rollback state before any save.
+* Transaction/account updates, debt creation, repayment creation, and deletion flows all restore the previous state if a save fails.
+* This prevents half-written JSON files and balance mismatches.
+
+## Cleanup Work Performed
+
+* Removed obsolete helper references and cleaned up redundant code created during earlier development iterations.
+* Kept `format_signed_currency()` and `get_valid_transactions()` because the dashboard still uses them.
+* Kept `is_account_referenced_by_transfers()` as a future helper for account deletion validation.
+* Aligned transaction, debt, transfer, and dashboard notes with the current category-aware schema.
+
+## Lessons Learned
+
+* Rollback protection matters as much as validation in money-related flows.
+* Shared helpers should be reused only when their behavior stays identical.
+* Financial features are easier to maintain when every write path is treated as an atomic transaction.
