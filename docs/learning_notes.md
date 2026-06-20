@@ -1,373 +1,189 @@
-# Feature 1: Account Creation
 
-## Purpose
 
-Allow users to create financial accounts (Cash, Bank, UPI, Investment, Credit Card) via a CLI menu. Accounts are validated, assigned a unique ID, and saved to a JSON file.
 
----
-
-## Business Rules
-
-- Account name must be unique (case-insensitive — "SBI" and "sbi" count as duplicates)
-- Account name cannot be empty
-- Starting balance cannot be negative
-- Account type must be one of 5 predefined types (selected by number, not free text)
-- Account ID is auto-generated (highest existing ID + 1, starting from 1)
-- Created date is set automatically using today's date
-- `data/accounts.json` and its directory are created automatically if missing
+# Expense Intelligence System - Version 1 Learning Notes
 
 ---
 
-## Functions
+## Project Overview
 
-| Function | Purpose | Why Needed |
-|----------|---------|------------|
-| `load_accounts()` | Read accounts from JSON file into a list | Every operation needs the current data — duplicate checks, ID generation |
-| `save_accounts(accounts)` | Write the full accounts list back to JSON | Centralizes file-writing so any future feature can reuse it |
-| `generate_account_id(accounts)` | Return the next unique ID | IDs must auto-increment without user input |
-| `is_duplicate_name(accounts, name)` | Check if a name already exists | Enforces the unique-name business rule |
-| `get_valid_account_type()` | Show allowed types and validate the user's choice | Rejects invalid input in a loop until a valid type is picked |
-| `get_valid_balance()` | Collect and validate a non-negative number | Uses try/except to handle non-numeric input safely |
-| `add_account()` | Orchestrate the full creation workflow | Coordinates load → validate → build → save in one place |
-| `main()` | Display menu and route user choices | Entry point; keeps running until user exits |
+**What was built:** A comprehensive, terminal-based Personal Finance Management System written purely in Python. It manages accounts, tracks income and expenses via customizable categories, orchestrates money transfers, and handles complex debt lifecycles (borrowing, lending, partial repayments, and automated balance synchronization).
 
----
+**Why it was built:** To apply fundamental software engineering principles to a real-world, mathematically strict domain. Building a financial ledger from scratch forces developers to handle edge cases, data persistence, atomic operations, and rigid validation, moving beyond simple CRUD apps.
 
-## Flow
+**Final Version 1 Status:**
 
-1. User selects "Add Account" from the main menu.
-2. User enters an account name.
-3. System validates: account name is not empty
-4. account name is unique (case-insensitive)
-5. User selects an account type.
-6. User enters a starting balance.
-7. System validates that the balance is not negative.
-8. Account ID is generated automatically.
-9. Account record is created.
-10. Account is saved to `accounts.json`.
-11. Success confirmation is displayed.
-12. Control returns to the main menu.
+Version 1 Feature Complete
 
----
+All planned Version 1 functionality has been implemented and tested.
 
-## Key Learnings
+The project successfully passed:
 
-**Python concepts:**
-- `json.loads()` (string → Python object) vs `json.dump()` (Python object → file)
-- `with open()` guarantees file closure even on errors
-- `try/except ValueError` catches type conversion failures without crashing
-- `.strip()`, `.lower()`, `.isdigit()` — essential string methods for input handling
-- `while True` + `break`/`continue`/`return` — the standard input validation loop pattern
-- `os.path.join()` builds cross-platform file paths
-- `if __name__ == "__main__"` prevents code from running on import
-- f-strings for clean string formatting
+- Functional Testing
+- Integration Testing
+- Corruption Testing
+- Rollback Testing
+- Performance Testing
 
-**Software development concepts:**
-- Separation of concerns — each function does exactly one thing
-- Defensive programming — never trust user input, validate everything
-- Constants at the top — single source of truth for config values
-- JSON as a lightweight persistence layer for small projects (trade-off: no indexing, full rewrite on every save)
+Version 1 is considered:
+
+- Stable Release Candidate
+- Ready for Personal Production Use
+- Strong Portfolio Project
+
+Future versions can improve:
+
+- Automated Testing
+- Logging
+- Backup Systems
+- Modular Architecture
+- Database Support
 
 ---
 
-## Future Improvements
+## New Skills Acquired
 
-- ~~View~~, edit, and delete accounts
-- Confirmation prompt before saving ("Are you sure?")
-- UUID-based IDs to avoid gaps after deletions
-- Backup `accounts.json` before overwriting
-- Move account types to a config file
+### Technical Skills
 
----
----
+* **Data Modeling:** Designed relational schemas across JSON files using integer IDs as foreign keys.
+* **Referential Integrity:** Enforced cross-file consistency between accounts, transactions, debts, and repayments without a database engine.
+* **Rollback Systems:** Built atomic multi-file save operations with `copy.deepcopy()` snapshots and nested exception handling.
+* **Corruption Recovery:** Centralized JSON loading to gracefully handle missing, empty, and malformed files.
+* **Performance Analysis:** Identified $O(n^2)$ bottlenecks through stress testing at 50,000+ records.
 
-# Feature 2: View Accounts
+### Engineering Skills
 
-## Purpose
-
-Allow users to view all accounts stored in `accounts.json` in a formatted CLI table with a summary section. This feature is read-only — it never modifies account data.
-
----
-
-## Business Rules
-
-- Viewing accounts must never modify `accounts.json`
-- If no accounts exist, display "No accounts found." — no crash, no empty table
-- Accounts are displayed in ascending ID order (ID = creation order)
-- Summary (total count + total balance) is calculated dynamically at display time
-- Balances are displayed in Indian Rupee format with 2 decimal places
+* **Requirement Analysis:** Translated real-world financial rules into strict programmatic constraints.
+* **Edge Case Thinking:** Discovered that `float("nan")`, future dates, and same-account transfers bypass standard validation.
+* **Bug Isolation:** Traced root causes across multiple modules (e.g., `nan` appearing in 4 separate entry points).
+* **Root Cause Analysis:** Learned to fix the underlying pattern (centralized validation) rather than patching individual symptoms.
+* **QA Methodology:** Executed 14 structured test groups covering functional, integration, corruption, rollback, and performance testing.
 
 ---
 
-## Functions
 
-| Function | Purpose | Why Needed |
-|----------|---------|------------|
-| `format_currency(amount)` | Convert a number to `₹15,000.00` format | Same formatting needed in summary and every table row — DRY |
-| `display_accounts_summary(accounts)` | Print total count and combined balance | Separates summary logic from table display |
-| `view_accounts()` | Orchestrate: load → empty check → sort → summary → table | Same orchestrator pattern as `add_account()` |
+## Version 1 Engineering Mindset Shift
 
----
+The most significant growth during Version 1 was the transition from **feature-driven development** to **resilience-driven engineering**.
 
-## Flow
+Initially, success was defined as *"does the code execute the happy path?"* By the end of the project, success was defined as *"can the system survive hostile inputs, partial saves, and corrupted states?"*
 
-1. `main()` shows menu with "View Accounts" as option 2
-2. User picks "View Accounts" → `view_accounts()` is called
-3. Accounts are loaded from JSON via `load_accounts()` (reused from Feature 1)
-4. If the list is empty → print "No accounts found." and return
-5. Accounts are sorted by ID (ascending) using `sorted()` — returns a new list, original untouched
-6. `display_accounts_summary()` prints total count and total balance
-7. Table header is built, separator width is computed from header length
-8. Loop prints each account row with formatted currency
-9. Control returns to the menu
+This shift manifested in several core areas:
+* **Validation:** Moving from trusting user input to assuming all inputs (and native language quirks like `float("nan")`) are actively trying to break the math.
+* **Rollbacks (Atomicity):** Realizing that saving data to three files is not three operations—it is one operation that must completely succeed or completely fail, utilizing `copy.deepcopy()` to protect state.
+* **Corruption Recovery:** Transitioning from blind file reads (`json.loads()`) to defensive I/O wrappers that trap `JSONDecodeError` and OS-level permission failures.
+* **Edge Cases:** Discovering that the most dangerous bugs do not live in core calculation logic, but at system boundaries (future dates, same-account transfers, zero balances).
+* **Reliability over Features:** Feature development became 20% of the effort; building the hardened infrastructure to protect those features became the other 80%.
 
----
+## Version 1 Engineering Milestones
 
-## Key Learnings
+* Built working features
+* Added validation layers
+* Added business rules
+* Added relational integrity
+* Added rollback protection
+* Added corruption recovery
+* Added integration testing
+* Added performance testing
 
-**Python concepts:**
-- `f"₹{amount:,.2f}"` — format spec with `,` for thousands separator and `.2f` for 2 decimal places
-- `f"{'ID':<6}"` — f-string with `:<` for left-alignment and `:>` for right-alignment in fixed-width columns
-- Single quotes inside double-quoted f-strings — outer and inner quotes must differ for compatibility
-- `sorted(list, key=lambda x: x["field"])` — returns a new sorted list without modifying the original
-- `lambda` — one-line anonymous function, used here to tell `sorted()` what to sort by
-- `sum(x["field"] for x in list)` — generator expression inside `sum()` for memory-efficient totals
-- `len(string)` — returns character count, used to compute dynamic separator width
-- `sys.stdout.reconfigure(encoding="utf-8")` — ensures non-ASCII characters (₹) display correctly on Windows
+**Lesson:**
+Building features was easy. Making them reliable was the real engineering challenge.
+## Major Technical Concepts Learned
 
-**Software development concepts:**
-- Read-only operations should never call write functions (`save_accounts` is never called)
-- `sorted()` vs `.sort()` — `sorted()` is the safe choice for read-only features because it doesn't mutate
-- DRY principle — `format_currency()` extracted because the same format appears in multiple places
-- Avoiding magic numbers — separator width derived from `len(header)` instead of hardcoded `64`
-- Storing intermediate results in variables (`header`) can serve dual purposes (display + computation)
+### Centralized Storage Architecture
+**Why `load_json_file()` was created:** Initially, each module loaded its own JSON files, assuming the files existed and were perfectly formatted. This led to crashes. By centralizing storage infrastructure into one helper, I could enforce system-wide resilience.
+**Handling edge cases:**
+* **Missing file handling:** If `os.path.exists` is false, it safely returns an empty list `[]` instead of crashing.
+* **Empty file handling:** Handles completely empty files gracefully.
+* **JSON corruption handling:** Traps `json.JSONDecodeError` to prevent fatal application crashes when a file has invalid syntax.
+* **OSError handling:** Catches permission or disk errors defensively.
+* **Directory auto-creation:** Guarantees `data/` exists before attempting reads.
+**Lessons Learned:** Centralized infrastructure acts as a single source of truth. If a bug is found in file loading, fixing it in `load_json_file()` instantly protects the entire application.
 
----
+### 1. Data Modeling
+**Accounts, Transactions, Categories, Debts, Repayments:** I learned to map real-world financial concepts into structured dictionaries. An Account is a state container (`balance`), while a Transaction is an immutable event that modifies that state. Debts and Repayments are relational layers sitting on top of core transactions.
 
-## Known Limitations (V1)
+**Lessons Learned:**
+* **Why IDs are better than names:** Names change and duplicate. Generating and storing unique integer IDs (`account_id`, `category_id`) guarantees that references remain unbreakable even if the user renames their "Bank" to "Checking".
+* **Why relationships matter:** A debt repayment isn't just money moving—it's a change to an Account's balance, a decrease in a Debt's `remaining_amount`, and a permanent Transaction record. Tying these together via IDs is what makes the ledger accurate.
 
-- Long account names (>25 chars) may misalign table columns — won't crash, just looks off
-- Feature 1 and Feature 2 use different balance formats (`25000.0` vs `₹25,000.00`)
-- Indian numbering system (lakh/crore: `₹15,00,000`) not implemented — uses standard `₹1,500,000`
+### 2. Validation Evolution & Systems
+**What it means:** Validation is the security checkpoint of software. It proves data is mathematically, structurally, and logically sound before the application trusts it.
 
----
----
+**Evolution from Feature-Specific to Centralized Validation:**
+Initially, each feature (like `add_income` or `transfer_money`) had its own `while True` loop validating inputs. This caused duplicated logic and inconsistent rules. By moving to centralized validation helpers (`get_valid_balance()`, `get_valid_amount()`, `get_valid_date()`, `validate_transaction()`, `validate_category_name()`), the system became strictly uniform.
+**Lessons Learned:** 
+* **Defensive programming mindset:** Never trust user input, external files, or even other internal functions.
+* **Why validation should be reusable:** Centralized functions guarantee that "amount" means the exact same thing whether it's an expense or a debt repayment. 
 
-# Feature 3: Add Transaction
+**NAN / Infinity Bug Lesson:**
+* **Dangerous Quirks:** Python's `float("nan")` and `float("inf")` bypass normal mathematical comparisons. `nan > 5000` evaluates to `False`, allowing a user to sneak `nan` past a maximum-value check!
+* **Mandatory Fix:** Using `math.isfinite()` became absolutely mandatory across all financial inputs to block these non-real numbers.
+* **Lesson Learned:** You can't just validate against what you *expect* a user to do; you must consider the deep technological limitations and quirks of the language itself during validation.
 
-## Purpose
+### Validation Layers
 
-Allow users to record Income and Expense transactions against a selected account. It validates inputs, updates account balances, and saves transaction and account data to separate JSON files.
+Validation exists at multiple levels:
 
----
+- Input Validation
+- Data Validation
+- Business Rule Validation
+- Relationship Validation
 
-## Business Rules
+Lesson:
+A value can be technically valid while still violating business rules.
 
-- Account must exist before creating a transaction
-- Transaction type must be Income or Expense
-- Transaction must be assigned an active category matching the transaction type
-- Amount must be greater than zero
-- Expense amount cannot exceed account balance
-- Description cannot be empty
-- Transaction ID is auto-generated (highest existing ID + 1, starting from 1)
-- Transaction date is automatically generated using today's date
-- Account balance must be updated and saved after transaction
-- Transactions are saved in `transactions.json`
-- Updated balances are saved in `accounts.json`
-- If an account has a balance of exactly zero, expenses are blocked immediately
-- Financial writes use rollback-safe atomic save protection
+**Examples & Lessons:**
+* **ACC-001 (Negative Balances):** Allowed creating accounts with sub-zero balances. Taught me to enforce domain constraints immediately at data entry.
+* **INC-001, TRN-001, REP-001 (`float("nan")` bypasses):** Addressed via the centralized `math.isfinite()` defense mechanism.
 
----
+### 3. Rollback Systems
+**Why it exists:** When a user creates a Debt, the application modifies `debts.json`, `transactions.json`, and `accounts.json`. If the application crashes halfway through saving these files, the database enters a permanently corrupted "partial" state.
+**How it works:** Taking a snapshot via `copy.deepcopy()` before changing any data. If an `Exception` occurs during the save sequence, the system forcefully overwrites the files with the pristine snapshot.
+**The ATOM-001 Lesson:** A rollback is still an I/O operation! If the first save fails due to a disk error, the rollback save will likely fail too. The rollback sequence itself must be protected by a nested `try...except` block to prevent cascading unhandled crashes.
 
-## Functions
+### Deep Copy vs Assignment
 
-| Function | Purpose | Why Needed |
-|----------|---------|------------|
-| `load_transactions()` | Read transactions from JSON file into a list | Every operation needs current transaction data — ID generation, list append |
-| `save_transactions(transactions)` | Write the full transactions list back to JSON | Centralizes file writing for transaction records persistence |
-| `generate_transaction_id(transactions)` | Return the next unique ID | Transaction IDs must auto-increment without user input |
-| `select_account(accounts)` | Show accounts with balances and validate selection | Links the transaction to a specific account; reusable for transfers |
-| `select_transaction_category(transaction_type)` | Show only valid categories for the chosen transaction type | Keeps transaction categories aligned with the current schema and hides debt categories |
-| `get_valid_amount(transaction_type, balance)` | Prompt for positive number; checks balance for expenses | Rejects invalid or insufficient amounts dynamically based on type |
-| `add_income()` | Entry point for the Income flow | Routes the menu choice into the shared transaction helper |
-| `add_expense()` | Entry point for the Expense flow | Routes the menu choice into the shared transaction helper |
-| `_add_transaction(transaction_type)` | Orchestrate the full transaction workflow | Coordinates load → validate → calculate → save in one place |
+`old_accounts = accounts`
 
----
+does not create a backup.
 
-## Flow
+Both variables point to the same object.
 
-1. `main()` shows menu options for "Add Income" and "Add Expense"
-2. User picks one option → `add_income()` or `add_expense()` calls `_add_transaction()`
-3. Default categories are seeded if needed
-4. Accounts are loaded; if none exist, print message and exit
-5. User selects an account via `select_account()`
-6. User selects a matching active category via `select_transaction_category()`
-7. If type is Expense and account balance is zero, print message and exit
-8. User enters transaction amount via `get_valid_amount()`
-9. User enters description → rejected if empty
-10. `old_balance` is saved; `new_balance` is calculated and rounded to 2 decimals
-11. Transaction record is created and appended to transaction list
-12. Transactions and accounts are saved inside an atomic `try/except` block with rollback copies
-13. Confirmation with details (previous vs new balance) is printed
+`copy.deepcopy(accounts)`
 
----
+creates an independent snapshot.
 
-## Key Learnings
+Lesson:
+Rollback systems are impossible without true copies.
 
-**Python concepts:**
-- `enumerate()` — returns index and item from a list, starting menu numbering at 1
-- `sorted()` — returns a sorted copy of a list using a key, keeping original data order intact
-- `lambda` — one-line anonymous function, used as a sort key for accounts
-- `float()` — converts input strings into decimal numbers for currency arithmetic
-- `try/except` — catches type conversion errors from invalid user input without crashing
-- `round()` — rounds floats to 2 decimal places to prevent floating-point calculation errors
-- List append — adds the new transaction dictionary to the existing transactions list
-- Dictionary creation — builds the structured transaction record with six fields
-- Function parameters — passing variables (type, balance) into input functions for custom validation
-- Passing by reference — dictionary changes within functions update the parent list directly
+### 4. Corruption Recovery
+**The REC-001 Bug:** The system assumed `json.loads()` would always succeed if a file existed. If a file got corrupted (e.g. `{ invalid syntax `), the app crashed entirely on startup.
+**Why it matters:** Users can accidentally edit JSON files. A system crash is unacceptable.
+**The Fix & Lesson:** Centralized JSON loading into a `load_json_file()` helper that specifically traps `json.JSONDecodeError` and `OSError`, gracefully returning an empty list and warning the user, keeping the application alive. Assume all external files are hostile.
 
-**Software development concepts:**
-- Single Responsibility Principle — separating logic into small helper functions with one task each
-- Reusability — creating generic validation and selection functions for reuse in other features
-- Separation of Concerns — separating data loading/saving from UI prompts and mathematical calculations
-- Data Relationships — using `account_id` as a foreign key to link transactions to accounts
-- Referential Integrity — ensuring transactions are only linked to valid, existing accounts
-- Guard Clauses — exiting functions early if preconditions (like existing accounts) are not met
-- Input Validation — looping indefinitely until valid data is entered to protect system integrity
-- Data Persistence — saving data to separate JSON files to ensure state survives app restart
+### 5. Soft Delete Architecture
+**Why it's used:** If a user deletes a category called "Food", but 50 historical transactions use `category_id: 5`, deleting the category record breaks history. 
+**The Lesson:** Hard deletes corrupt relational databases. By adding an `"is_deleted": True` flag, the category disappears from UI menus but remains available so old transactions render correctly. Historical immutability is paramount in financial software.
+
+### 6. Relational Data Design
+**Why references are safer than duplicated data:** If a transaction stored the literal string `"Bank"` instead of `account_id: 1`, and the user later renamed the account to `"Checking"`, I would have to search and update thousands of transaction records. By referencing an ID, I only update the name in one place, and the entire system instantly reflects the change. Single source of truth.
+
+### Single Source of Truth
+
+Store IDs instead of names.
+
+Derive information instead of duplicating it.
+
+Lesson:
+Duplicated state eventually becomes inconsistent.
 
 ---
 
-## Known Limitations (V1)
 
-- Cannot edit transactions (no balance reversal logic)
-- Cannot delete transactions (no balance reversal logic)
-- No transaction search or filtering
-- No reports or summaries of transaction history
+# Feature Architecture & Engineering Case Studies
 
----
-
-## Future Improvements
-
-- Edit and delete transaction options
-- Transaction search and date filtering
-- Monthly or category-wise expense reports
-
----
----
-
-# Feature 4: View Transactions
-
-## Purpose
-
-Allow users to view all historical transactions in a formatted CLI table with a financial summary. Users can track where money came from (Income) and where it was spent (Expense), and verify previously entered records. This feature is read-only — it never modifies transaction or account data.
-
----
-
-## Business Rules
-
-- Viewing transactions must never modify `transactions.json` or `accounts.json`
-- All transactions are displayed — no filtering, no search, no pagination
-- Transactions are sorted by date (newest → oldest)
-- If dates are equal, sorted by transaction ID (highest → lowest) for deterministic ordering
-- Display columns: Transaction ID, Date, Type, Account, Category, Amount, Description
-- Account names are resolved from `account_id` using `accounts.json`
-- If a transaction references an `account_id` that no longer exists, display "Deleted Account"
-- Income amounts displayed as `+₹1,000.00`, Expense amounts as `-₹500.00`
-- Type column is kept because Transfer rows share the same table and need explicit labeling
-- Summary shows Total Income and Total Expense below the table
-- Invalid records are skipped — not displayed, not included in summary calculations
-- Aggregated count of invalid records is shown (e.g., "Skipped 3 invalid transaction records.")
-- If no transactions exist, display "No transactions found." — no crash, no empty table
-- If all transactions are invalid, display the skip count then the empty-state message
-- Accounts are loaded only after confirming transactions exist — no unnecessary file I/O
-
----
-
-## Functions
-
-| Function | Purpose | Why Needed |
-|----------|---------|------------|
-| `format_transaction_amount(amount, transaction_type)` | Format amount with `+`/`-` sign and `₹` symbol | Separate from `format_currency()` because existing call sites (balances, summaries) don't need signs — avoids breaking 4 existing usages |
-| `validate_transaction(transaction)` | Check if a single record has all required keys and valid values | Catches missing keys, invalid types ("Banana"), non-numeric amounts, empty descriptions, and empty dates before they cause silent errors |
-| `get_account_name(account_id, accounts)` | Resolve an `account_id` to an account name via linear scan | Returns "Deleted Account" if no match — handles deleted accounts gracefully without crashing |
-| `get_category_name(category_id, categories)` | Resolve a `category_id` to a category name via linear scan | Keeps renamed and deleted categories readable without rewriting old transactions |
-| `display_transaction_table(transactions, accounts, categories)` | Print formatted table header and all transaction rows | Contains per-row logic (account lookup, category lookup, and column formatting) — enough complexity to extract from the orchestrator |
-| `view_transactions()` | Orchestrate: load → empty check → load accounts/categories → validate → sort → display → summarize | Same orchestrator pattern as the add and view flows |
-
----
-
-## Flow
-
-1. `main()` shows menu with "View Transactions" as option 4
-2. User picks "View Transactions" → `view_transactions()` is called
-3. Transactions are loaded from JSON via `load_transactions()` (reused from Feature 3)
-4. If the list is empty → print "No transactions found." and return (accounts are NOT loaded)
-5. Accounts and categories are loaded from JSON (deferred until needed)
-6. Each transaction is validated via `validate_transaction()` — separated into valid and invalid lists
-7. If any invalid records found → print "Skipped N invalid transaction record(s)."
-8. If no valid records remain → print empty-state message and return
-9. Valid transactions are sorted inline using `sorted()` — date descending, then transaction ID descending
-10. `display_transaction_table()` prints the header and each row with resolved account names, category names, and signed amounts
-11. Total Income and Total Expense are calculated from valid transactions using `sum()` with generator expressions
-12. Summary is printed using `format_currency()` — control returns to the menu
-
----
-
-## Key Learnings
-
-**Python concepts:**
-- `set` and `.issubset()` — checks if all required keys exist in a dictionary; more readable than checking each key individually
-- `isinstance(value, (int, float))` — type checking with a tuple of types to accept multiple valid types
-- `sorted()` with tuple key — `key=lambda t: (t["date"], t["transaction_id"])` sorts by primary then secondary key
-- `reverse=True` — reverses the entire sort order (newest date and highest ID first)
-- Generator expressions inside `sum()` — `sum(t["amount"] for t in list if t["type"] == "Income")` filters and sums in one pass without creating an intermediate list
-- `round(value, 2)` — prevents floating-point drift when summing many decimal amounts
-- f-string alignment — `:<6` for left-aligned, `:>15` for right-aligned columns in fixed-width table output
-- List filtering with a loop — building `valid_transactions` by appending only records that pass validation
-- Helper functions as pure functions — `validate_transaction()`, `get_account_name()`, `get_category_name()`, and `format_transaction_amount()` have no side effects; they take input and return output
-- Constants as a single source of truth — `REQUIRED_TRANSACTION_KEYS` and `VALID_TRANSACTION_TYPES` keep transaction validation aligned with the current schema, including Transfer records
-
-**Software development concepts:**
-- Data validation beyond key presence — checking that values are correct (type is Income/Expense, amount is numeric, description is non-empty) prevents silently incorrect summaries
-- Defensive programming — invalid records are skipped with a warning, never crash the application
-- Data integrity — invalid records are excluded from both display and calculations; summaries are always accurate
-- Read-only operations — `save_transactions()` and `save_accounts()` are never called; data flows one direction (file → process → display)
-- Separation of concerns — validation, display, formatting, and orchestration are each in separate functions
-- Data relationships — `account_id` links transactions to accounts; `get_account_name()` resolves this foreign key at display time
-- Graceful error handling — deleted accounts show "Deleted Account" instead of crashing; empty states show friendly messages
-- Deterministic sorting — using a secondary sort key (transaction ID) ensures identical output every time, even when dates are equal
-- Reusability — `format_currency()` from Feature 2 is reused for summary totals; `load_transactions()` and `load_accounts()` from earlier features are reused
-- Single source of truth — `VALID_TRANSACTION_TYPES` keeps transaction validation aligned with the current schema, including Transfer records
-
----
-
-## Known Limitations (V1)
-
-- No transaction filtering (by date, type, or account)
-- No search functionality
-- No pagination — all transactions displayed at once
-- Long descriptions may push table rows beyond terminal width — won't crash, just looks off
-- No edit or delete transaction support
-- Indian numbering system (lakh/crore) not implemented — uses standard comma formatting
-
----
-
-## Future Improvements
-
-- Filter transactions by date range, type, or account
-- Search transactions by description keyword
-- Category-based filtering
-- Transfer-specific filtering
-- Monthly or category-wise expense reports
-- Analytics dashboard with spending trends
-- Pagination for large transaction lists
-
----
----
-
-# Feature 5: Category Management
+## Feature 5: Category Management (Design Decisions)
 
 ## Purpose
 
@@ -395,74 +211,6 @@ Allow users to manage transaction categories via a CLI submenu. This feature est
 
 ---
 
-## Functions
-
-| Function | Purpose | Why Needed |
-|----------|---------|------------|
-| `load_categories()` | Read categories from JSON file into a list | Every operation needs the current data — duplicate checks, ID generation, validation |
-| `save_categories(categories)` | Write the full categories list back to JSON | Centralizes persistent storage for category records |
-| `generate_category_id(categories)` | Return the next unique ID | Category IDs must auto-increment without user input to act as stable foreign keys |
-| `ensure_default_categories()` | Seed the system with default categories if empty | Speeds up user onboarding and ensures essential categories exist |
-| `view_categories()` | Display all categories, grouped by type and sorted | Allows users to visually verify active and deleted categories |
-| `validate_category_name(name)` | Trim whitespace and reject empty names | Centralizes sanitization so both creation and renaming share the same rules |
-| `is_duplicate_category_name(categories, name, exclude_id)` | Case-insensitive global uniqueness check | Enforces the unique-name business rule, with an optional exclusion for renaming |
-| `select_category(categories, filter_fn, empty_message)` | Unified selection helper for categories | DRY principle — reusable loop for rename, delete, and restore flows |
-| `create_category(category_type)` | Create or auto-restore a category | Coordinates validation, global uniqueness, and intelligent auto-restoration |
-| `rename_category()` | Rename a custom category | Updates category names while blocking redundant or duplicate renames |
-| `delete_category()` | Soft delete a custom category after confirmation | Hides categories without breaking past transaction referential integrity |
-| `restore_category()` | Restore a deleted category | Brings back hidden categories, checking for active name collisions first |
-| `manage_categories()` | Category submenu loop | Sub-orchestrator; keeps running category operations until user exits back to main |
-
----
-
-## Flow
-
-**Main Flow**
-1. `main()` shows menu with "Manage Categories" as option 5
-2. User picks "Manage Categories" → `manage_categories()` is called
-3. `ensure_default_categories()` runs to seed defaults if the system is completely empty
-4. Submenu loop is displayed offering View, Add Expense, Add Income, Rename, Delete, Restore, and Back
-
-**Create Category Flow**
-1. User picks "Add Expense Category" or "Add Income Category"
-2. Categories are loaded from JSON
-3. User enters a name → whitespace is trimmed
-4. Name is validated → rejected if empty
-5. System checks for a deleted category with the exact name and same type → auto-restores if found
-6. System checks for duplicate active categories across all types → rejected if duplicate
-7. New category record is built and appended
-8. Full list is saved to JSON and confirmation is printed
-
-**Rename Category Flow**
-1. User picks "Rename Category"
-2. Categories are loaded from JSON
-3. `select_category()` filters for non-default categories and displays numbered list
-4. User selects a category
-5. User enters new name → whitespace is trimmed, rejected if empty
-6. New name is compared against current name case-insensitively → rejected if identical (e.g., "Gym" to "gym")
-7. New name is checked for global duplicates (excluding itself) → rejected if exists
-8. Category name is updated and saved to JSON
-
-**Delete Category Flow**
-1. User picks "Delete Category"
-2. Categories are loaded from JSON
-3. `select_category()` filters for active, non-default categories and displays numbered list
-4. User selects a category
-5. User is prompted for confirmation (`y/n`)
-6. If 'y', the `is_deleted` flag is set to `True` (Soft Delete)
-7. Full list is saved to JSON
-
-**Restore Category Flow**
-1. User picks "Restore Category"
-2. Categories are loaded from JSON
-3. `select_category()` filters for deleted categories and displays numbered list
-4. User selects a category
-5. System checks if an active category with the exact name already exists → blocks restore if true
-6. `is_deleted` flag is set to `False`
-7. Full list is saved to JSON
-
----
-
 ## Design Decisions
 
 - **`category_id` instead of category name:** Names change over time. If a user renames "Gym" to "Fitness", using a stable numeric ID ensures that all past transactions pointing to ID `11` instantly reflect the new name. Linking by name would require updating every historical transaction during a rename.
@@ -473,43 +221,15 @@ Allow users to manage transaction categories via a CLI submenu. This feature est
 
 ---
 
-## Key Learnings
-
-**Python concepts:**
-- `json.load()` and `json.dump()` with `indent=4` for human-readable formatting, handling malformed files with `try-except json.JSONDecodeError`
-- List filtering with comprehensions to cleanly separate data (e.g., `[c for c in categories if c["type"] == "Expense"]`)
-- Multi-key sorting by passing a tuple to the `key` argument: `categories.sort(key=lambda c: (c["is_deleted"], c["name"].lower()))`
-- Boolean sorting logic — because `False` evaluates to `0` and `True` to `1`, active categories (`False`) sort before deleted ones (`True`)
-- Passing functions as arguments — `filter_fn` (a lambda or local function) passed to `select_category` dynamically dictates allowed selections
-- Optional parameters — `exclude_id=None` allowed the same validation function to be used for both creation and renaming
-- Modeling state using boolean flags (`is_default`, `is_deleted`) rather than separate lists to maintain a single source of truth
-
-**Software development concepts:**
-- Separation of concerns — distinct layers for Data I/O, Seeding, Validation, Selection, and Operations
-- Single Responsibility Principle (DRY) — consolidated logic into a single `select_category()` helper to reduce code duplication across rename, delete, and restore
-- Soft Delete vs Hard Delete — implemented Soft Delete pattern to preserve historical accuracy and referential integrity of past financial transactions
-- Global uniqueness constraints — enforcing unique names across all types prevents ambiguous data states (e.g., conflicting Expense and Income categories)
-- Defensive programming — wrapping numeric inputs in `isdigit()` and `try-except ValueError` blocks to prevent crashes
 
 ---
 
-## Known Limitations (V1)
-
-- Category names can theoretically be very long, potentially misaligning the display table
-- Categories cannot be merged (e.g., combining "Gym" and "Fitness" into a single category is not supported)
-- No pagination for category views if the list becomes massive
+---
 
 ---
 
-## Future Improvements
 
-- Spending analysis and pie charts grouped by category
-- Income analysis reports
-- Analytics dashboard with AI insights leveraging globally unique category names
-
----
-
-# Feature 6: Category Integration
+## Feature 6: Category Integration (Data-Model Evolution)
 
 ## Purpose
 
@@ -541,47 +261,7 @@ Connect categories with transactions by storing `category_id` in transaction rec
 
 ---
 
-## Functions
-
-**Functions Added:**
-- `get_category_name()`
-- `select_transaction_category()`
-- `add_income()`
-- `add_expense()`
-- `_add_transaction()`
-
-**Functions Modified:**
-- `validate_transaction()`
-- `display_transaction_table()`
-- `view_transactions()`
-
 ---
-
-## Flow
-
-**Income**
-
-Select Account
-↓
-Select Income Category
-↓
-Amount
-↓
-Description
-↓
-Save Transaction
-
-**Expense**
-
-Select Account
-↓
-Select Expense Category
-↓
-Amount
-↓
-Description
-↓
-Save Transaction
 
 ---
 
@@ -594,37 +274,15 @@ Save Transaction
 
 ---
 
-## Key Learnings
-
-- How IDs can be used to connect related data across multiple JSON files.
-- Why `category_id` is better than `category_name` for long-term stability.
-- How dynamic data lookup allows category renames and restores without modifying old transactions.
-- How shared helper functions reduce duplicate code across similar features like adding income and expenses.
-- How a soft delete approach impacts linked records, requiring special display rules to maintain historical clarity.
-
 ---
 
-## Known Limitations (V1)
-
-- No transaction filtering by category.
-- No category-based analytics or charts.
-- No quick selection for recently used categories.
-
 ---
-
-## Future Improvements
-
-- Filter transactions by category.
-- Category spending summary.
-- Recently used categories.
-- Category-wise reports.
-- Category spending trends.
-- Dashboard widgets using category data.
 
 ---
 ---
 
-# Feature 7: Debt Tracking
+
+## Feature 7: Debt Tracking (Engineering Case Study)
 
 ## Purpose
 
@@ -696,124 +354,6 @@ If a user tries to repay more than the remaining balance, the system detects the
 * **Person Name Normalization:** Names are stripped of leading/trailing whitespace before saving to prevent duplicate mismatches.
 * **One Debt = One Account:** Strictly enforced across creation and repayment.
 
-### Debt Record
-```json
-{
-    "debt_id": 1,
-    "transaction_id": 45,
-    "account_id": 2,
-    "person_name": "Rahul",
-    "type": "LENT",
-    "status": "ACTIVE",
-    "original_amount": 5000.0,
-    "remaining_amount": 2000.0,
-    "purpose": "Bike Repair",
-    "notes": "Will repay next week",
-    "created_date": "2026-06-19"
-}
-```
-
-### Repayment Record
-```json
-{
-    "repayment_id": 1,
-    "debt_id": 1,
-    "transaction_id": 46,
-    "account_id": 2,
-    "amount": 3000.0,
-    "date": "2026-06-25"
-}
-```
-
----
-
-## Functions
-
-### Functions Added
-
-* `load_debts()`
-* `save_debts()`
-* `generate_debt_id()`
-* `load_repayments()`
-* `save_repayments()`
-* `generate_repayment_id()`
-* `add_debt()`
-* `view_debts()`
-* `add_repayment()`
-* `delete_repayment()`
-* `delete_debt()`
-* `view_repayments()`
-* `manage_debts()`
-* `create_debt_transaction()`
-* `create_repayment_transaction()`
-* `update_debt_status()`
-* `find_active_debts_by_person()`
-
-### Functions Modified
-
-* `ensure_default_categories()`: Added logic to dynamically seed the 4 system-level debt categories.
-* `get_or_create_debt_categories()`: A dedicated safety function guaranteeing debt categories exist.
-* `select_transaction_category()`: Updated `filter_fn` to proactively hide internal debt categories from manual income/expense workflows.
-* `main()`: Updated the main menu loop to include the new Debt Tracking submenu option.
-
----
-
-## Flow
-
-### Add Debt
-Debt Type
-↓
-Select Account
-↓
-Person Name
-↓
-Amount
-↓
-Purpose
-↓
-Notes
-↓
-Date (future dates blocked)
-↓
-Save Atomically
-
-### Record Repayment
-Select Debt
-↓
-Select Account
-↓
-Date (future dates blocked, not before debt creation)
-↓
-Repayment Amount
-↓
-Save Atomically
-
-### Delete Repayment
-Select Repayment
-↓
-Confirm
-↓
-Reverse Transaction
-↓
-Restore Debt Balance
-↓
-Save Atomically
-
-### Delete Debt
-Select Debt
-↓
-Check Repayment History
-↓
-Reverse Linked Transaction
-↓
-Restore Account Balance
-↓
-Delete Debt
-↓
-Save Atomically
-
----
-
 ## Design Decisions
 
 **Decision:** One Debt = One Account
@@ -842,178 +382,15 @@ Save Atomically
 
 ---
 
-## Key Learnings
-
-* **Financial data consistency:** Learning how to mathematically tie multiple moving parts (debt remaining balance + account balance + transaction history) together so they never fall out of sync.
-* **Referential relationships between records:** Linking JSON objects using IDs (`transaction_id`, `account_id`, `debt_id`) simulating foreign keys in a relational database architecture.
-* **Maintaining balance synchronization:** Understanding that moving money involves double-entry-style logic—if a debt balance goes down, an account balance must go up, and a transaction must be recorded.
-* **Transaction reversal patterns:** Learning how to cleanly "undo" a complex action by carefully reversing its exact mathematical effects, rather than attempting to restore a previously saved state file.
-* **Status-based lifecycle management:** Deriving a record's state (`ACTIVE`/`CLOSED`) mathematically based on its actual data values rather than relying on manual user input toggles.
-* **Soft accounting principles:** Grasping that LENT money acts as an "Expense" against your current liquid balance, and BORROWED money acts as "Income" to your current liquid balance.
-* **Data normalization:** Storing entities (Debts vs Repayments) in their own discrete flat lists rather than deeply nesting them, making the logic code easier to read and scale.
-* **Designing business rules before coding:** Realizing that identifying edge cases (like overpayments, date paradoxes, and debt merging logic) *before* writing code prevents massive structural refactoring later.
-* **Rollback protection:** Backing up all related lists before destructive debt operations prevents partial file writes from corrupting account balances or debt state.
-
 ---
 
-## Known Limitations (V1)
-
-* No debt editing for amount/account/type
-* No debt reminders
-* No interest calculations
-* No due dates
-* No debt search/filter
-* No partial settlements or discounts
-* No debt analytics
-
 ---
-
-## Future Improvements
-
-* Due dates
-* Debt reminders
-* Interest tracking
-* Debt analytics dashboard
-* Person-wise debt summary
-* Debt search
-* Debt filtering
-* Debt reports
-* Debt aging analysis
 
 ---
 ---
 
-# Feature 8: Dashboard
 
-## Purpose
-
-The dashboard was added to provide a high-level, read-only financial overview of the entire Expense Intelligence System on a single screen. Previously, users had to navigate multiple menus (View Accounts, View Transactions, View Debts) and manually calculate their total financial standing. The dashboard solves this by aggregating data from all separate modules (`accounts.json`, `transactions.json`, `debts.json`, `categories.json`) into an instant, centralized snapshot.
-
----
-
-## Business Rules
-
-* Dashboard is strictly read-only
-* Dashboard never modifies, saves, or deletes data
-* Dashboard uses existing JSON files dynamically instead of storing summary metrics
-* Dashboard relies on existing business logic and validators
-* Dashboard summarizes information instead of duplicating data entry screens
-* Dashboard displays exactly 6 sections:
-  * Financial Overview
-  * Account Summary
-  * Debt Summary
-  * Top Expense Categories
-  * Recent Activity
-  * Net Debt Position
-* Top Expense Categories only calculates transactions of type "Expense"
-* Recent Activity is limited strictly to 5 transactions, sorted newest first
-* Malformed records (missing keys, invalid formats) are silently excluded from all aggregations to prevent crashes
-
----
-
-## Functions
-
-`calculate_total_balance()`
-Purpose: Calculate total balance across all accounts.
-
-`calculate_income_expense_summary()`
-Purpose: Calculate total income, total expenses, and net cash flow.
-
-`calculate_account_summary()`
-Purpose: Extract valid accounts and their balances.
-
-`calculate_debt_summary()`
-Purpose: Aggregate lent/borrowed amounts and active/closed counts.
-
-`calculate_top_expense_categories()`
-Purpose: Find the 3 highest expense categories.
-
-`get_recent_transactions()`
-Purpose: Retrieve the 5 most recent transactions.
-
-`calculate_net_debt_position()`
-Purpose: Compute net debt (lent minus borrowed).
-
-`format_signed_currency()`
-Purpose: Format amounts with +/- signs.
-
-`show_dashboard()`
-Purpose: Orchestrate dashboard data loading and display.
-
----
-
-## Flow
-
-Load Data
-↓
-Validate Data
-↓
-Calculate Summaries
-↓
-Generate Dashboard Sections
-↓
-Display Results
-
----
-
-## Design Decisions
-
-* Read-only architecture
-* Reuse existing helper functions
-* No new JSON files
-* Category resolution using category_id
-* Showing deleted categories as "(Deleted)"
-* Top 3 expense categories only
-* Recent Activity limited to 5 transactions
-* Signed amount formatting (+/-)
-* Total Account Count wording
-
----
-
-## Key Learnings
-
-* Data aggregation
-* Read-only reporting
-* Cross-feature integration
-* Sorting
-* Filtering
-* Financial calculations
-* Dashboard design
-* Defensive programming
-
----
-
-## Known Limitations
-
-* No analytics
-* No budgeting
-* No charts
-* No trend analysis
-* No AI insights
-
----
-
-## Review Improvements
-
-* Added signed transaction formatting (+/-)
-* Improved dashboard validation
-* Fixed account count wording
-* Improved malformed data handling
-
----
-
-## Future Improvements
-
-* Analytics
-* Budget tracking
-* Savings rate
-* Monthly trends
-* Charts
-* AI insights
----
----
-
-# Feature 9: Transfer Money Between Accounts
+## Feature 9: Transfer Architecture (Case Study)
 
 ## Purpose
 
@@ -1054,72 +431,6 @@ Transfers should not affect income or expense totals because the overall net wor
 
 ---
 
-## Functions
-
-`transfer_money()`
-Purpose: Initiates the transfer creation flow, validating sufficient balances, preventing same-account selection, checking date validity, and atomically executing the balance updates and transaction save.
-
-`delete_transfer()`
-Purpose: Presents a list of transfers and handles deletion. It safely reverses the balance changes without putting normal accounts into the negative, and removes the transfer from the transaction history atomically.
-
-`is_account_referenced_by_transfers()`
-Purpose: A helper function that scans the transaction history to check if an account is part of any transfer, fulfilling future account deletion validation requirements.
-
-`validate_transaction()`
-Purpose: Validate transaction records while supporting different schemas for Income, Expense, and Transfer transactions. Transfer validation uses `from_account_id` and `to_account_id` instead of `account_id` and `category_id`.
-
-`display_transaction_table()`
-Purpose: Display transfer transactions using dynamic `Source Account -> Destination Account` formatting while maintaining compatibility with Income and Expense transaction display logic.
-
-`get_recent_transactions()`
-Purpose: Retrieve the latest valid transactions, including Transfer records, for dashboard Recent Activity display.
-
-`show_dashboard()`
-Purpose: Integrate Transfer transactions into Recent Activity while ensuring transfers remain excluded from income and expense calculations.
-
----
-
-## Flow
-
-Select Source Account
-↓
-Select Destination Account
-↓
-Validate Different Accounts
-↓
-Enter Amount
-↓
-Validate Balance Rules
-↓
-Enter Date
-↓
-Validate Date
-↓
-Enter Notes
-↓
-Show Confirmation Screen
-↓
-Execute Transfer
-↓
-Save Transaction
-↓
-Update Account Balances
-
-**Deletion Flow:**
-Select Transfer to Delete
-↓
-Validate Safe Balance Reversal
-↓
-Show Confirmation Screen
-↓
-Reverse Balances
-↓
-Remove Transaction Record
-↓
-Save Updates Atomically
-
----
-
 ## Design Decisions
 
 * **One transfer record instead of two records**
@@ -1145,80 +456,160 @@ Save Updates Atomically
 
 ---
 
-## Key Learnings
-
-* **Financial integrity:** Ensuring that moving money from one bucket to another does not mistakenly alter global net worth or gross cash flow statistics.
-* **Atomic transactions:** Developing a reliable fallback mechanism (`try/except` with `copy.deepcopy()`) to ensure partial updates never permanently corrupt the system if I/O operations fail.
-* **Data consistency:** Guaranteeing that the `from_account` and `to_account` always maintain equilibrium by subtracting and adding the exact same values synchronously.
-* **Rollback logic:** Understanding how to cache previous states in memory before executing destructive file writes, and gracefully recovering those states upon system errors.
-* **Cross-account operations:** Managing complex flows where user choices on one variable (e.g., source account) strictly influence valid options on another (e.g., preventing same-account selection).
-* **Validation chains:** Linking multiple business rules (balances, dates, valid types) to act as a solid gateway before executing a transaction.
-* **Transaction modeling:** Learning how to adapt an existing schema (removing `category_id` and injecting `from_account_id` / `to_account_id`) to support entirely distinct concepts within a unified data store.
-* **Relational references using IDs:** Preventing hardcoded strings in transaction logs to allow dynamic resolution, ensuring data remains accurate regardless of future upstream changes.
-* **Defensive programming:** Building explicit blocks against edge cases, such as blocking the reversal of a transfer if it would drop a normal account balance below zero.
-* **Business rule enforcement:** Strictly implementing future constraints (e.g., account deletion protection) early on via dedicated helper logic.
-* **Data Modeling:** Learning how a single transaction system can support multiple business concepts (Income, Expense, and Transfer) using different record structures while still remaining inside one unified storage file and one transaction history timeline. Transfer records use a different schema because they represent internal money movement rather than external cash flow, so they do not need categories. However, maintaining all types inside `transactions.json` preserves a single, chronological timeline of financial activity. The key benefit of this unified transaction model is that cross-system features like the Dashboard's Recent Activity feed and global sorting logic can operate seamlessly across all transaction types without requiring complex, multi-file queries or data merging.
+---
 
 ---
 
-## Known Limitations
-
-* No recurring transfers
-* No scheduled transfers
-* No transfer fees
-* No transfer editing
-* No multi-currency support
-* No transfer analytics
+---
 
 ---
 
-## Review Improvements
 
-* **Fixed date validation:** Blank input still defaults to today, while invalid or future dates are rejected in a strict loop.
-* **Added future date validation:** Specifically blocked future dates so transfer history stays real and chronological.
-* **Added rollback protection:** Backups of memory state are now taken immediately before execution, allowing safe aborts on I/O failure.
-* **Improved atomic execution:** Linked the `save_transactions` and `save_accounts` methods in a unified `try/except` block to prevent half-writes.
-* **Fixed dashboard wording:** Updated "Active Account Count" to "Total Account Count" because the system does not track inactive accounts.
-* **Added transfer cancellation protection:** Implemented and proved that answering `N` during the confirmation prompt leaves the system state completely untouched.
+## Bugs and Engineering Lessons
 
----
-
-## Future Improvements
-
-* Recurring transfers
-* Scheduled transfers
-* Transfer analytics
-* Transfer search/filtering
-* Transfer categories
-* Multi-currency support
-* Bank integration
+| BUG | CAUSE | FIX | LESSON |
+| :--- | :--- | :--- | :--- |
+| **ACC-001** | Account creation logic did not check if the initial balance was `< 0`. | Added strict `>= 0` conditional loops to the account creation prompt. | Always validate initial state, not just ongoing mutations. |
+| **INC-001** | Python's `float()` accepted `"nan"` and `"inf"`, bypassing conditional checks entirely. | Centralized amount validation using `math.isfinite()`. | Never trust native type casting. Understand language-level quirks for data types. |
+| **TRN-001** | `transfer_money` implemented its own fragile validation loop instead of using the hardened helper. | Rerouted `transfer_money` to use `math.isfinite()`. | Don't Repeat Yourself (DRY). Inline, duplicated logic breeds inconsistent vulnerabilities. |
+| **REP-001** | `add_repayment` did manual `nan` vulnerable checks when verifying `remaining_amount` overpayments. | Enforced `math.isfinite()` and strict bounds checks in the repayment loop. | Every entry point that touches a mathematical ledger must be guarded identically. |
+| **REC-001** | `json.loads()` was called without a `try-except` wrapper, causing fatal startup crashes on bad syntax. | Wrapped all loaders in a centralized helper that catches `JSONDecodeError`. | External states (files, networks) are volatile and untrustworthy. Catch I/O exceptions defensively. |
+| **ATOM-001** | The `except Exception` rollback block failed to catch secondary exceptions if the rollback save itself failed. | Added a nested `try...except` inside the rollback block. | Error handling code must itself be fault-tolerant. Anticipate cascading systemic failures. |
+| **DATE-001** | Future dates were accepted, which corrupted the financial timeline. | Future date validation blocked inputs greater than `date.today()`. | Valid format does not mean valid business data. |
+| **DEBT-001** | Repayment date could occur before debt creation date, causing chronological inconsistency. | Minimum date validation referencing the debt's creation date. | Cross-record validation is often more important than single-field validation. |
 
 ---
 
-# Post-Development Refactoring & Stability Improvements
+## Testing Lessons
 
-## Major Bugs Fixed
+### Bug Discovery Pattern
 
-* Future dates are now rejected in transfer and debt/repayment flows.
-* Repayment date checks now respect the debt creation date.
-* Transfer deletion and debt/repayment deletion now reverse balances safely.
-* Invalid transaction records are skipped cleanly instead of breaking summaries.
+Most bugs were not calculation bugs.
 
-## Atomic Save Improvements
+Most bugs came from:
 
-* Multi-file financial writes now use deep-copied rollback state before any save.
-* Transaction/account updates, debt creation, repayment creation, and deletion flows all restore the previous state if a save fails.
-* This prevents half-written JSON files and balance mismatches.
+- Missing validation
+- Missing business rules
+- Missing relationship checks
+- Unhandled I/O failures
+- Incorrect assumptions
 
-## Cleanup Work Performed
+Lesson:
+The highest-risk parts of software are usually system boundaries.
 
-* Removed obsolete helper references and cleaned up redundant code created during earlier development iterations.
-* Kept `format_signed_currency()` and `get_valid_transactions()` because the dashboard still uses them.
-* Kept `is_account_referenced_by_transfers()` as a future helper for account deletion validation.
-* Aligned transaction, debt, transfer, and dashboard notes with the current category-aware schema.
+**Summary of QA:** We executed 14 Test Groups progressing from Accounts to Transactions, Transfers, Debts, multi-module integrations, JSON corruption, save-failures, and finally extreme-scale performance profiling.
 
-## Lessons Learned
+* **Testing Early vs Late:** Because I didn't test float validation thoroughly until Group 5 (Transfers), the `nan` bug was discovered in multiple places, requiring repetitive fixes. I should have hardened the base validation functions before building complex features.
+* **Edge Cases:** QA is about breaking things. Testing `float("inf")`, zero-balance transfers, and identical source/destination accounts found more bugs than standard "happy path" testing.
+* **Regression Testing:** Every time I fixed a bug, I re-ran the suite. This proved that fixing ATOM-001 didn't break standard transactions.
+* **Stress Testing & Performance Findings:** Throwing large datasets at Python proved the language's memory management is excellent, but highlighted algorithmic bottlenecks.
+  * **Largest Dataset Tested:** 1,000 Accounts, 50,000 Transactions, 2,000 Debts, 5,000 Repayments.
+  * **Peak Memory Usage:** ~30 MB.
+  * **Bottlenecks Discovered:** `view_repayments()` suffered from an $O(n^2)$ loop, causing UI lag. `get_account_name()` and `get_category_name()` executed $O(n)$ lists scans inside transaction loops. `get_recent_transactions()` had heavy sorting costs on the full list, and the dashboard suffered from repeated identical full-list scans.
+  * **Lessons Learned:** Big O notation strictly dictates application performance. Shifting from list iterations to dictionary indexing ($O(1)$) is mandatory. Algorithms matter significantly more at scale than hardware or language speed.
 
-* Rollback protection matters as much as validation in money-related flows.
-* Shared helpers should be reused only when their behavior stays identical.
-* Financial features are easier to maintain when every write path is treated as an atomic transaction.
+---
+
+## Architecture Decisions That Worked Well
+
+* **JSON Storage:** Extremely lightweight and easy to inspect manually for debugging.
+* **Soft Deletes:** Preserved the strict mathematical and visual integrity of the ledger when removing accounts or categories.
+* **Relational IDs:** Kept the JSON files small and made renaming operations trivial and safe.
+* **Rollback Strategy:** `copy.deepcopy()` proved to be an incredibly effective, simple way to maintain transaction atomicity without needing a formal SQL engine.
+
+---
+
+## Engineering Decisions I Designed Myself
+
+Document the major design decisions created during development.
+
+* **Debt Category Architecture**: System-generated debt categories are strictly siloed from user selection.
+
+
+---
+
+## Architecture Decisions I Would Change
+
+* **Large `main.py`:** A monolithic 1,900-line file is difficult to navigate. Version 2 must be split into modular domains.
+* **Duplicated Validation:** Inline `while True` loops caused duplicate logic. Version 2 requires a dedicated prompt manager.
+* **$O(n^2)$ Lookups:** Iterating over all debts inside rendering loops lags at scale. Version 2 must load lists into dictionaries for $O(1)$ lookups.
+
+---
+
+---
+
+## Biggest Mistakes
+
+* **Inline Validation:** I allowed `transfer_money` to write its own validation checks instead of forcing it to use a central helper. **Lesson:** If logic is written twice, it will break twice.
+* **Assuming I/O succeeds:** I assumed `json.loads` and `file.write` would always work if the file existed. **Lesson:** The Operating System can revoke permissions, fill up the disk, or corrupt files at any microsecond.
+* **Not using dictionaries for lookups:** Relying on list comprehensions `next((x for x in list if x.id == id))` inside `for` loops scaled terribly. **Lesson:** Learn time complexity ($Big O$) and apply appropriate data structures.
+
+---
+
+## What This Project Taught Me About Software Engineering
+
+**Engineering Mindset Evolution:**
+* **At the start:** The focus was entirely on feature building—just getting the "happy path" code to execute and print the correct result.
+* **At the end:** The focus shifted entirely to reliability, integrity, validation, rollback safety, and corruption resistance. Writing the feature became only 20% of the job; protecting it became the other 80%.
+
+Building this project rewired my brain from "just making it work" to **"engineering it to survive."** Software engineering differs drastically from simply writing code. Code executes instructions; software engineering guarantees those instructions don't destroy the system when the environment or user behaves unpredictably.
+
+I learned to think defensively:
+* "What if the user types NaN?"
+* "What if the hard drive unplugs during a save?"
+* "What if they delete an account that has 400 past transactions?"
+
+An engineering mindset requires assuming that everything that *can* fail *will* fail, and designing a system that gracefully traps those failures.
+
+---
+
+## Version 1 Project Metrics
+
+Project Statistics:
+
+* Code: ~1,900 lines (single `main.py`)
+* Features: 9
+* Critical Bugs Fixed: 8 (ACC-001, INC-001, TRN-001, REP-001, DATE-001, DEBT-001, REC-001, ATOM-001)
+* Deferred Issues: 1 (DASH-001)
+* QA Test Groups: 14
+* Stress Test Peak: 50,000 transactions, ~30 MB memory
+
+---
+
+---
+
+## Version 1 Final Engineering Achievements
+
+Over the course of Version 1, the following critical infrastructure was successfully designed and implemented:
+* **Corruption recovery:** Safe JSON loaders that gracefully trap syntax errors.
+* **Atomic rollback:** Nested exception handling ensuring multi-file saves never partially fail.
+* **Validation hardening:** Centralized protection against `nan`, `inf`, and boundary edge-cases.
+* **Debt lifecycle management:** Automated status progression tracking complex interpersonal finance.
+* **Transfer architecture:** Single-record design preventing double-counting inflation.
+* **Category integration:** Soft-delete relational architecture preserving historical integrity.
+* **Dashboard aggregation:** Multi-module analytics summarizing the entire state of the application.
+* **Performance profiling:** Proven memory stability under 50,000+ record scale tests.
+
+---
+
+## Engineering Principles Learned
+
+1. Validate at multiple layers (input, business rules, relationships).
+2. IDs are more stable than names for relational references.
+3. Never trust file input — assume all external data is hostile.
+4. Financial operations must be atomic across all affected files.
+5. Rollback logic is as important as save logic.
+6. Single source of truth prevents data inconsistency.
+7. Bugs usually hide in edge cases, not in core logic.
+8. Correctness before optimization.
+9. Test assumptions, not just features.
+10. Reliability requires more effort than feature creation.
+
+---
+
+## Final Reflection
+
+1. **What did I do well?** Successfully modeled a multi-layered relational financial system with ironclad rollback safety.
+2. **What did I struggle with?** Code organization; the monolithic `main.py` grew unwieldy over time.
+3. **What would I do differently?** Build the centralized input validation functions and JSON loaders first, before any features.
+4. **Engineering mindset evolution:** Software engineering isn't just about features. The hardest part is protecting those features from invalid input, partial saves, and edge cases.

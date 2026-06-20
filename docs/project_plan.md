@@ -1,204 +1,156 @@
-# Expense Intelligence System
+# Expense Intelligence System — Project Plan
+
+## Project Overview
+
+This document serves as the central planning and scoping reference for the Expense Intelligence System. It outlines the project goals, development phases, planned features, testing strategy, and future roadmap.
+
+## Contents
+
+- [Project Goal](#project-goal)
+- [Development Phases](#development-phases)
+- [Version 1 Scope](#version-1-scope)
+- [Planned Features](#planned-features)
+- [Testing Strategy](#testing-strategy)
+- [Data Architecture](#data-architecture)
+- [Version 2 Roadmap](#version-2-roadmap)
+
+---
 
 ## Project Goal
 
-Build a Personal Finance Management System using Python to learn:
+The project was created to learn and apply:
 
-* Real software development
-* Problem solving
-* File handling
-* JSON storage
-* Project structure
-* Git & GitHub
-* Software design
+* Software Development
+* Problem Solving
+* File Handling
+* JSON-Based Data Persistence
+* Project Architecture
+* Git & GitHub Workflows
+* Software Design Principles
+
+---
+
+## Development Phases
+
+The project is intentionally developed feature-by-feature to simulate a real software development lifecycle. Each module is designed, implemented, tested, documented, and committed independently before moving to the next phase.
+
+| Phase   | Module                           |
+| ------- | -------------------------------- |
+| Phase 1 | Account Management               |
+| Phase 2 | Category Management              |
+| Phase 3 | Income & Expense Tracking        |
+| Phase 4 | Transfer Management              |
+| Phase 5 | Debt Tracking                    |
+| Phase 6 | Dashboard                        |
+| Phase 7 | Testing, Hardening & Refactoring |
+
+The project was designed around a feature-by-feature development approach. Each phase builds upon the previous one, allowing business rules, validation, testing, and documentation to evolve alongside the application.
 
 ---
 
 ## Version 1 Scope
 
-Single User System
+### System Scope
 
-The application is designed for one user.
+* Single-user application
+* Local JSON storage
+* Terminal-based interface
 
-The user can manage:
+### Planned Modules
 
-* Multiple accounts
-* Income
-* Expenses
-* Transfers
-* Debt tracking
-* Categories
-* Dashboard
+Version 1 was planned to include:
 
----
-
-## Features
-
-### Account Management
-
-User can:
-
-* Add account
-* View accounts
-* Update account balance
-
-Examples:
-
-* Cash
-* UPI
-* SBI Bank
-* Investment Account
-* Credit Card
+- Account Management
+- Category Management
+- Income Tracking
+- Expense Tracking
+- Transfer Management
+- Debt Tracking
+- Repayment Tracking
+- Dashboard
 
 ---
 
-### Category Management
+## Planned Features
 
-User can:
+### Financial Management
 
-* Add category
-* View categories
+* Multi-account management
+* Income tracking
+* Expense tracking
+* Transfer management
 
-Default examples:
+### Debt Management
 
-* Food
-* Shopping
-* Transport
-* Gym
-* Subscription
-* Healthcare
-* Skincare
+* Debt creation
+* Debt repayment tracking
+* Debt deletion
+* Repayment deletion
 
-User can create custom categories.
+### Data Management
 
----
+* Category management
+* Soft delete architecture
+* Relational data modeling
 
-### Transaction Management
+### System Features
 
-User can:
-
-* Add income
-* Add expense
-* View transactions
-
-Transaction types:
-
-* Income
-* Expense
-
-Examples:
-
-Income:
-
-* Pocket Money
-* Salary
-* Freelance
-
-Expense:
-
-* Food
-* Shopping
-* Gym
+* Dashboard analytics
+* Corruption recovery
+* Rollback protection
 
 ---
 
-### Transfer Management
+## Testing Strategy
 
-Transfer money between accounts.
+Testing was planned as a continuous activity throughout development rather than a final phase. Each feature was validated individually before integration into the larger system.
 
-Example:
+### Areas to Test
 
-SBI Bank → Investment Account
-
-₹5000
-
-Transfer should not be counted as an expense.
-
-It only moves money between accounts.
-
----
-
-### Debt Tracking
-
-Track money lent and borrowed.
-
-Money Lent Example:
-
-Rahul owes ₹1000
-
-Money Borrowed Example:
-
-Amit lent me ₹5000
-
-Status:
-
-* Pending
-* Paid
+- Functional testing
+- Integration testing
+- Data validation testing
+- Corruption recovery testing
+- Rollback testing
+- Performance testing
 
 ---
 
-### Dashboard
+## Data Architecture
 
-Show:
+Version 1 uses JSON files as the persistence layer. Each file represents a separate domain within the system and is connected through unique identifiers.
 
-* Total Income
-* Total Expense
-* Net Savings
-* Account Balances
-* Pending Debts
-* Pending Loans
-
----
-
-## Data Files
-
-accounts.json
-
-categories.json
-
-transactions.json
-
-debts.json
+* `accounts.json`
+* `categories.json`
+* `transactions.json`
+* `debts.json`
+* `repayments.json`
 
 ---
 
-## Development Order
+## Future Architecture Direction
 
-Phase 1
+Version 1 prioritizes simplicity and learning through a function-based architecture with JSON storage.
 
-* Account Management
+Future versions may introduce:
 
-Phase 2
-
-* Category Management
-
-Phase 3
-
-* Income & Expense Transactions
-
-Phase 4
-
-* Transfer Management
-
-Phase 5
-
-* Debt Tracking
-
-Phase 6
-
-* Dashboard
-
-Phase 7
-
-* Analytics
+- Database-backed persistence
+- Modular application structure
+- Authentication and user management
+- API-driven architecture
+- Web-based user interface
 
 ---
 
-## Future Version 2
+## Version 2 Roadmap
 
-* Multi-user support
-* Budget management
-* Charts
-* Monthly reports
-* Investment tracking
-* Smart insights
+### Planned Improvements
+
+- Web Application
+- Authentication & User Accounts
+- Database Integration
+- Interactive Dashboard
+- Charts & Analytics
+- Report Exporting
+- AI-Powered Insights
+- Improved Architecture & Modularization

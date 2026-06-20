@@ -3,6 +3,7 @@ import os
 import sys
 from datetime import date
 import copy
+import math
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -34,20 +35,33 @@ VALID_DEBT_TYPES = ["LENT", "BORROWED"]
 REPAYMENTS_FILE = os.path.join(DATA_DIR, "repayments.json")
 
 
-def load_accounts():
+def load_json_file(filepath):
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
 
-    if not os.path.exists(ACCOUNTS_FILE):
+    if not os.path.exists(filepath):
         return []
 
-    with open(ACCOUNTS_FILE, "r") as file:
-        content = file.read()
+    try:
+        with open(filepath, "r", encoding="utf-8") as file:
+            content = file.read()
 
-    if not content.strip():
+        if not content.strip():
+            return []
+
+        return json.loads(content)
+    except json.JSONDecodeError:
+        print(f"\nWarning: {os.path.basename(filepath)} contains invalid JSON.")
+        print("Loading empty dataset.")
+        return []
+    except OSError as e:
+        print(f"\nWarning: Error reading {os.path.basename(filepath)}: {e}")
+        print("Loading empty dataset.")
         return []
 
-    return json.loads(content)
+
+def load_accounts():
+    return load_json_file(ACCOUNTS_FILE)
 
 
 def save_accounts(accounts):
@@ -63,19 +77,7 @@ def generate_account_id(accounts):
 
 
 def load_transactions():
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-
-    if not os.path.exists(TRANSACTIONS_FILE):
-        return []
-
-    with open(TRANSACTIONS_FILE, "r") as file:
-        content = file.read()
-
-    if not content.strip():
-        return []
-
-    return json.loads(content)
+    return load_json_file(TRANSACTIONS_FILE)
 
 
 def save_transactions(transactions):
@@ -91,22 +93,7 @@ def generate_transaction_id(transactions):
 
 
 def load_categories():
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-
-    if not os.path.exists(CATEGORIES_FILE):
-        return []
-
-    try:
-        with open(CATEGORIES_FILE, "r", encoding="utf-8") as file:
-            content = file.read()
-
-        if not content.strip():
-            return []
-
-        return json.loads(content)
-    except json.JSONDecodeError:
-        return []
+    return load_json_file(CATEGORIES_FILE)
 
 
 def save_categories(categories):
@@ -122,22 +109,7 @@ def generate_category_id(categories):
 
 
 def load_debts():
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-
-    if not os.path.exists(DEBTS_FILE):
-        return []
-
-    try:
-        with open(DEBTS_FILE, "r", encoding="utf-8") as file:
-            content = file.read()
-
-        if not content.strip():
-            return []
-
-        return json.loads(content)
-    except json.JSONDecodeError:
-        return []
+    return load_json_file(DEBTS_FILE)
 
 
 def save_debts(debts):
@@ -153,22 +125,7 @@ def generate_debt_id(debts):
 
 
 def load_repayments():
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-
-    if not os.path.exists(REPAYMENTS_FILE):
-        return []
-
-    try:
-        with open(REPAYMENTS_FILE, "r", encoding="utf-8") as file:
-            content = file.read()
-
-        if not content.strip():
-            return []
-
-        return json.loads(content)
-    except json.JSONDecodeError:
-        return []
+    return load_json_file(REPAYMENTS_FILE)
 
 
 def save_repayments(repayments):
@@ -512,6 +469,10 @@ def get_valid_balance():
             print("Invalid input. Please enter a number.")
             continue
 
+        if not math.isfinite(balance):
+            print("Invalid balance. Please enter a finite number.")
+            continue
+
         if balance < 0:
             print("Balance cannot be negative.")
             continue
@@ -579,6 +540,10 @@ def get_valid_amount(transaction_type, balance):
             amount = float(amount_input)
         except ValueError:
             print("Invalid input. Please enter a number.")
+            continue
+
+        if not math.isfinite(amount):
+            print("Invalid amount. Please enter a finite number.")
             continue
 
         if amount <= 0:
@@ -849,8 +814,16 @@ def _add_transaction(transaction_type):
         print(f"  Previous Balance: {format_currency(old_balance)}")
         print(f"  New Balance:      {format_currency(new_balance)}")
     except Exception as e:
-        save_transactions(old_transactions)
-        save_accounts(old_accounts)
+        try:
+            save_transactions(old_transactions)
+            save_accounts(old_accounts)
+        except Exception as rollback_error:
+            print("\nCRITICAL SYSTEM ERROR")
+            print(f"Original Error: {e}")
+            print(f"Rollback Error: {rollback_error}")
+            print("Application could not guarantee data consistency.")
+            print("Please restore from backup and inspect data files.")
+            
         print(f"\nSystem error during transaction creation: {e}")
         print("Transaction creation aborted. No changes were saved.")
 
@@ -1278,9 +1251,17 @@ def add_debt():
         save_debts(debts)
         print("\nDebt recorded successfully!")
     except Exception as e:
-        save_transactions(old_transactions)
-        save_accounts(old_accounts)
-        save_debts(old_debts)
+        try:
+            save_transactions(old_transactions)
+            save_accounts(old_accounts)
+            save_debts(old_debts)
+        except Exception as rollback_error:
+            print("\nCRITICAL SYSTEM ERROR")
+            print(f"Original Error: {e}")
+            print(f"Rollback Error: {rollback_error}")
+            print("Application could not guarantee data consistency.")
+            print("Please restore from backup and inspect data files.")
+            
         print(f"\nSystem error during debt creation: {e}")
         print("Debt creation aborted. No changes were saved.")
 
@@ -1367,6 +1348,10 @@ def add_repayment():
             print("Invalid amount.")
             continue
             
+        if not math.isfinite(amount):
+            print("Invalid amount. Please enter a finite number.")
+            continue
+
         if amount <= 0:
             print("Amount must be greater than zero.")
             continue
@@ -1421,10 +1406,18 @@ def add_repayment():
         save_repayments(repayments)
         print("\nRepayment recorded successfully!")
     except Exception as e:
-        save_transactions(old_transactions)
-        save_accounts(old_accounts)
-        save_debts(old_debts)
-        save_repayments(old_repayments)
+        try:
+            save_transactions(old_transactions)
+            save_accounts(old_accounts)
+            save_debts(old_debts)
+            save_repayments(old_repayments)
+        except Exception as rollback_error:
+            print("\nCRITICAL SYSTEM ERROR")
+            print(f"Original Error: {e}")
+            print(f"Rollback Error: {rollback_error}")
+            print("Application could not guarantee data consistency.")
+            print("Please restore from backup and inspect data files.")
+            
         print(f"\nSystem error during repayment creation: {e}")
         print("Repayment creation aborted. No changes were saved.")
 
@@ -1501,10 +1494,18 @@ def delete_repayment():
         save_repayments(repayments)
         print("\nRepayment deleted successfully.")
     except Exception as e:
-        save_transactions(old_transactions)
-        save_accounts(old_accounts)
-        save_debts(old_debts)
-        save_repayments(old_repayments)
+        try:
+            save_transactions(old_transactions)
+            save_accounts(old_accounts)
+            save_debts(old_debts)
+            save_repayments(old_repayments)
+        except Exception as rollback_error:
+            print("\nCRITICAL SYSTEM ERROR")
+            print(f"Original Error: {e}")
+            print(f"Rollback Error: {rollback_error}")
+            print("Application could not guarantee data consistency.")
+            print("Please restore from backup and inspect data files.")
+            
         print(f"\nSystem error during repayment deletion: {e}")
         print("Repayment deletion aborted. No changes were saved.")
 
@@ -1572,9 +1573,17 @@ def delete_debt():
         save_debts(debts)
         print("\nDebt deleted successfully.")
     except Exception as e:
-        save_transactions(old_transactions)
-        save_accounts(old_accounts)
-        save_debts(old_debts)
+        try:
+            save_transactions(old_transactions)
+            save_accounts(old_accounts)
+            save_debts(old_debts)
+        except Exception as rollback_error:
+            print("\nCRITICAL SYSTEM ERROR")
+            print(f"Original Error: {e}")
+            print(f"Rollback Error: {rollback_error}")
+            print("Application could not guarantee data consistency.")
+            print("Please restore from backup and inspect data files.")
+            
         print(f"\nSystem error during debt deletion: {e}")
         print("Debt deletion aborted. No changes were saved.")
 
@@ -1669,6 +1678,10 @@ def transfer_money():
             print("Invalid input. Please enter a number.")
             continue
             
+        if not math.isfinite(amount):
+            print("Invalid amount. Please enter a finite number.")
+            continue
+
         if amount <= 0:
             print("Amount must be greater than zero.")
             continue
@@ -1732,8 +1745,16 @@ def transfer_money():
         save_accounts(accounts)
         print("\nTransfer executed successfully!")
     except Exception as e:
-        save_transactions(old_transactions)
-        save_accounts(old_accounts)
+        try:
+            save_transactions(old_transactions)
+            save_accounts(old_accounts)
+        except Exception as rollback_error:
+            print("\nCRITICAL SYSTEM ERROR")
+            print(f"Original Error: {e}")
+            print(f"Rollback Error: {rollback_error}")
+            print("Application could not guarantee data consistency.")
+            print("Please restore from backup and inspect data files.")
+            
         print(f"\nSystem error during transfer: {e}")
         print("Transfer aborted. No changes were saved.")
 
@@ -1811,8 +1832,16 @@ def delete_transfer():
         save_accounts(accounts)
         print("\nTransfer deleted and balances reversed successfully.")
     except Exception as e:
-        save_transactions(old_transactions)
-        save_accounts(old_accounts)
+        try:
+            save_transactions(old_transactions)
+            save_accounts(old_accounts)
+        except Exception as rollback_error:
+            print("\nCRITICAL SYSTEM ERROR")
+            print(f"Original Error: {e}")
+            print(f"Rollback Error: {rollback_error}")
+            print("Application could not guarantee data consistency.")
+            print("Please restore from backup and inspect data files.")
+            
         print(f"\nSystem error during deletion: {e}")
         print("Deletion aborted. No changes were saved.")
 
