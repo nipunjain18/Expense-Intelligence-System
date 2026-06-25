@@ -64,9 +64,9 @@ def load_accounts():
     return load_json_file(ACCOUNTS_FILE)
 
 
-def save_accounts(accounts):
-    with open(ACCOUNTS_FILE, "w") as file:
-        json.dump(accounts, file, indent=4)
+def save_json_file(filepath, data):
+    with open(filepath, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=4)
 
 
 def generate_id(items, id_key):
@@ -80,36 +80,16 @@ def load_transactions():
     return load_json_file(TRANSACTIONS_FILE)
 
 
-def save_transactions(transactions):
-    with open(TRANSACTIONS_FILE, "w") as file:
-        json.dump(transactions, file, indent=4)
-
-
 def load_categories():
     return load_json_file(CATEGORIES_FILE)
-
-
-def save_categories(categories):
-    with open(CATEGORIES_FILE, "w", encoding="utf-8") as file:
-        json.dump(categories, file, indent=4)
 
 
 def load_debts():
     return load_json_file(DEBTS_FILE)
 
 
-def save_debts(debts):
-    with open(DEBTS_FILE, "w", encoding="utf-8") as file:
-        json.dump(debts, file, indent=4)
-
-
 def load_repayments():
     return load_json_file(REPAYMENTS_FILE)
-
-
-def save_repayments(repayments):
-    with open(REPAYMENTS_FILE, "w", encoding="utf-8") as file:
-        json.dump(repayments, file, indent=4)
 
 
 def ensure_default_categories():
@@ -144,7 +124,7 @@ def ensure_default_categories():
             changed = True
 
     if changed:
-        save_categories(categories)
+        save_json_file(CATEGORIES_FILE, categories)
         
     return categories
 
@@ -183,7 +163,7 @@ def get_or_create_debt_categories():
                 changed = True
                 
     if changed:
-        save_categories(categories)
+        save_json_file(CATEGORIES_FILE, categories)
     
     return categories
 
@@ -300,7 +280,7 @@ def create_category(category_type):
                 continue
 
             deleted_match["is_deleted"] = False
-            save_categories(categories)
+            save_json_file(CATEGORIES_FILE, categories)
             print(f"\nCategory '{name}' restored automatically!")
             return
 
@@ -316,7 +296,7 @@ def create_category(category_type):
             "is_deleted": False
         }
         categories.append(new_category)
-        save_categories(categories)
+        save_json_file(CATEGORIES_FILE, categories)
         print(f"\nCategory '{name}' created successfully!")
         return
 
@@ -352,7 +332,7 @@ def rename_category():
             continue
 
         category["name"] = new_name
-        save_categories(categories)
+        save_json_file(CATEGORIES_FILE, categories)
         print(f"\nCategory renamed from '{current_name}' to '{new_name}'.")
         return
 
@@ -373,7 +353,7 @@ def delete_category():
 
     if choice.lower() == "y":
         category["is_deleted"] = True
-        save_categories(categories)
+        save_json_file(CATEGORIES_FILE, categories)
         print(f"\nCategory '{category['name']}' deleted.")
     else:
         print("\nDeletion cancelled.")
@@ -398,7 +378,7 @@ def restore_category():
         return
 
     category["is_deleted"] = False
-    save_categories(categories)
+    save_json_file(CATEGORIES_FILE, categories)
     print(f"\nCategory '{name}' restored.")
 
 
@@ -559,7 +539,7 @@ def add_account():
     }
 
     accounts.append(new_account)
-    save_accounts(accounts)
+    save_json_file(ACCOUNTS_FILE, accounts)
 
     print(f"\nAccount '{name}' created successfully!")
     print(f"  ID:      {new_account['account_id']}")
@@ -773,8 +753,8 @@ def _add_transaction(transaction_type):
     transactions.append(new_transaction)
 
     try:
-        save_transactions(transactions)
-        save_accounts(accounts)
+        save_json_file(TRANSACTIONS_FILE, transactions)
+        save_json_file(ACCOUNTS_FILE, accounts)
         print("\nTransaction recorded successfully!")
         print(f"  ID:               {new_transaction['transaction_id']}")
         print(f"  Account:          {account['name']}")
@@ -787,8 +767,8 @@ def _add_transaction(transaction_type):
         print(f"  New Balance:      {format_currency(new_balance)}")
     except Exception as e:
         try:
-            save_transactions(old_transactions)
-            save_accounts(old_accounts)
+            save_json_file(TRANSACTIONS_FILE, old_transactions)
+            save_json_file(ACCOUNTS_FILE, old_accounts)
         except Exception as rollback_error:
             print("\nCRITICAL SYSTEM ERROR")
             print(f"Original Error: {e}")
@@ -1218,15 +1198,15 @@ def add_debt():
     debts.append(new_debt)
 
     try:
-        save_transactions(transactions)
-        save_accounts(accounts)
-        save_debts(debts)
+        save_json_file(TRANSACTIONS_FILE, transactions)
+        save_json_file(ACCOUNTS_FILE, accounts)
+        save_json_file(DEBTS_FILE, debts)
         print("\nDebt recorded successfully!")
     except Exception as e:
         try:
-            save_transactions(old_transactions)
-            save_accounts(old_accounts)
-            save_debts(old_debts)
+            save_json_file(TRANSACTIONS_FILE, old_transactions)
+            save_json_file(ACCOUNTS_FILE, old_accounts)
+            save_json_file(DEBTS_FILE, old_debts)
         except Exception as rollback_error:
             print("\nCRITICAL SYSTEM ERROR")
             print(f"Original Error: {e}")
@@ -1372,17 +1352,17 @@ def add_repayment():
     update_debt_status(selected_debt)
 
     try:
-        save_transactions(transactions)
-        save_accounts(accounts)
-        save_debts(debts)
-        save_repayments(repayments)
+        save_json_file(TRANSACTIONS_FILE, transactions)
+        save_json_file(ACCOUNTS_FILE, accounts)
+        save_json_file(DEBTS_FILE, debts)
+        save_json_file(REPAYMENTS_FILE, repayments)
         print("\nRepayment recorded successfully!")
     except Exception as e:
         try:
-            save_transactions(old_transactions)
-            save_accounts(old_accounts)
-            save_debts(old_debts)
-            save_repayments(old_repayments)
+            save_json_file(TRANSACTIONS_FILE, old_transactions)
+            save_json_file(ACCOUNTS_FILE, old_accounts)
+            save_json_file(DEBTS_FILE, old_debts)
+            save_json_file(REPAYMENTS_FILE, old_repayments)
         except Exception as rollback_error:
             print("\nCRITICAL SYSTEM ERROR")
             print(f"Original Error: {e}")
@@ -1460,17 +1440,17 @@ def delete_repayment():
             debt["status"] = "ACTIVE"
 
     try:
-        save_transactions(transactions)
-        save_accounts(accounts)
-        save_debts(debts)
-        save_repayments(repayments)
+        save_json_file(TRANSACTIONS_FILE, transactions)
+        save_json_file(ACCOUNTS_FILE, accounts)
+        save_json_file(DEBTS_FILE, debts)
+        save_json_file(REPAYMENTS_FILE, repayments)
         print("\nRepayment deleted successfully.")
     except Exception as e:
         try:
-            save_transactions(old_transactions)
-            save_accounts(old_accounts)
-            save_debts(old_debts)
-            save_repayments(old_repayments)
+            save_json_file(TRANSACTIONS_FILE, old_transactions)
+            save_json_file(ACCOUNTS_FILE, old_accounts)
+            save_json_file(DEBTS_FILE, old_debts)
+            save_json_file(REPAYMENTS_FILE, old_repayments)
         except Exception as rollback_error:
             print("\nCRITICAL SYSTEM ERROR")
             print(f"Original Error: {e}")
@@ -1540,15 +1520,15 @@ def delete_debt():
     debts.remove(selected_debt)
 
     try:
-        save_transactions(transactions)
-        save_accounts(accounts)
-        save_debts(debts)
+        save_json_file(TRANSACTIONS_FILE, transactions)
+        save_json_file(ACCOUNTS_FILE, accounts)
+        save_json_file(DEBTS_FILE, debts)
         print("\nDebt deleted successfully.")
     except Exception as e:
         try:
-            save_transactions(old_transactions)
-            save_accounts(old_accounts)
-            save_debts(old_debts)
+            save_json_file(TRANSACTIONS_FILE, old_transactions)
+            save_json_file(ACCOUNTS_FILE, old_accounts)
+            save_json_file(DEBTS_FILE, old_debts)
         except Exception as rollback_error:
             print("\nCRITICAL SYSTEM ERROR")
             print(f"Original Error: {e}")
@@ -1713,13 +1693,13 @@ def transfer_money():
     transactions.append(new_transaction)
     
     try:
-        save_transactions(transactions)
-        save_accounts(accounts)
+        save_json_file(TRANSACTIONS_FILE, transactions)
+        save_json_file(ACCOUNTS_FILE, accounts)
         print("\nTransfer executed successfully!")
     except Exception as e:
         try:
-            save_transactions(old_transactions)
-            save_accounts(old_accounts)
+            save_json_file(TRANSACTIONS_FILE, old_transactions)
+            save_json_file(ACCOUNTS_FILE, old_accounts)
         except Exception as rollback_error:
             print("\nCRITICAL SYSTEM ERROR")
             print(f"Original Error: {e}")
@@ -1800,13 +1780,13 @@ def delete_transfer():
             break
     
     try:
-        save_transactions(transactions)
-        save_accounts(accounts)
+        save_json_file(TRANSACTIONS_FILE, transactions)
+        save_json_file(ACCOUNTS_FILE, accounts)
         print("\nTransfer deleted and balances reversed successfully.")
     except Exception as e:
         try:
-            save_transactions(old_transactions)
-            save_accounts(old_accounts)
+            save_json_file(TRANSACTIONS_FILE, old_transactions)
+            save_json_file(ACCOUNTS_FILE, old_accounts)
         except Exception as rollback_error:
             print("\nCRITICAL SYSTEM ERROR")
             print(f"Original Error: {e}")
