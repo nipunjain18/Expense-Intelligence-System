@@ -69,6 +69,27 @@ def save_json_file(filepath, data):
         json.dump(data, file, indent=4)
 
 
+def _atomic_save(new_data_map, old_data_map, error_prefix, abort_message):
+    try:
+        for filepath, data in new_data_map.items():
+            save_json_file(filepath, data)
+        return True
+    except Exception as e:
+        try:
+            for filepath, data in old_data_map.items():
+                save_json_file(filepath, data)
+        except Exception as rollback_error:
+            print("\nCRITICAL SYSTEM ERROR")
+            print(f"Original Error: {e}")
+            print(f"Rollback Error: {rollback_error}")
+            print("Application could not guarantee data consistency.")
+            print("Please restore from backup and inspect data files.")
+            
+        print(f"\n{error_prefix}: {e}")
+        print(abort_message)
+        return False
+
+
 def generate_id(items, id_key):
     if len(items) == 0:
         return 1
@@ -759,9 +780,13 @@ def _add_transaction(transaction_type):
 
     transactions.append(new_transaction)
 
-    try:
-        save_json_file(TRANSACTIONS_FILE, transactions)
-        save_json_file(ACCOUNTS_FILE, accounts)
+    success = _atomic_save(
+        {TRANSACTIONS_FILE: transactions, ACCOUNTS_FILE: accounts},
+        {TRANSACTIONS_FILE: old_transactions, ACCOUNTS_FILE: old_accounts},
+        "System error during transaction creation",
+        "Transaction creation aborted. No changes were saved."
+    )
+    if success:
         print("\nTransaction recorded successfully!")
         print(f"  ID:               {new_transaction['transaction_id']}")
         print(f"  Account:          {account['name']}")
@@ -772,19 +797,6 @@ def _add_transaction(transaction_type):
         print(f"  Date:             {new_transaction['date']}")
         print(f"  Previous Balance: {format_currency(old_balance)}")
         print(f"  New Balance:      {format_currency(new_balance)}")
-    except Exception as e:
-        try:
-            save_json_file(TRANSACTIONS_FILE, old_transactions)
-            save_json_file(ACCOUNTS_FILE, old_accounts)
-        except Exception as rollback_error:
-            print("\nCRITICAL SYSTEM ERROR")
-            print(f"Original Error: {e}")
-            print(f"Rollback Error: {rollback_error}")
-            print("Application could not guarantee data consistency.")
-            print("Please restore from backup and inspect data files.")
-            
-        print(f"\nSystem error during transaction creation: {e}")
-        print("Transaction creation aborted. No changes were saved.")
 
 
 def add_income():
@@ -1232,25 +1244,14 @@ def add_debt():
     }
     debts.append(new_debt)
 
-    try:
-        save_json_file(TRANSACTIONS_FILE, transactions)
-        save_json_file(ACCOUNTS_FILE, accounts)
-        save_json_file(DEBTS_FILE, debts)
+    success = _atomic_save(
+        {TRANSACTIONS_FILE: transactions, ACCOUNTS_FILE: accounts, DEBTS_FILE: debts},
+        {TRANSACTIONS_FILE: old_transactions, ACCOUNTS_FILE: old_accounts, DEBTS_FILE: old_debts},
+        "System error during debt creation",
+        "Debt creation aborted. No changes were saved."
+    )
+    if success:
         print("\nDebt recorded successfully!")
-    except Exception as e:
-        try:
-            save_json_file(TRANSACTIONS_FILE, old_transactions)
-            save_json_file(ACCOUNTS_FILE, old_accounts)
-            save_json_file(DEBTS_FILE, old_debts)
-        except Exception as rollback_error:
-            print("\nCRITICAL SYSTEM ERROR")
-            print(f"Original Error: {e}")
-            print(f"Rollback Error: {rollback_error}")
-            print("Application could not guarantee data consistency.")
-            print("Please restore from backup and inspect data files.")
-            
-        print(f"\nSystem error during debt creation: {e}")
-        print("Debt creation aborted. No changes were saved.")
 
 
 def view_debts():
@@ -1383,27 +1384,14 @@ def add_repayment():
     selected_debt["remaining_amount"] = round(selected_debt["remaining_amount"] - amount, 2)
     update_debt_status(selected_debt)
 
-    try:
-        save_json_file(TRANSACTIONS_FILE, transactions)
-        save_json_file(ACCOUNTS_FILE, accounts)
-        save_json_file(DEBTS_FILE, debts)
-        save_json_file(REPAYMENTS_FILE, repayments)
+    success = _atomic_save(
+        {TRANSACTIONS_FILE: transactions, ACCOUNTS_FILE: accounts, DEBTS_FILE: debts, REPAYMENTS_FILE: repayments},
+        {TRANSACTIONS_FILE: old_transactions, ACCOUNTS_FILE: old_accounts, DEBTS_FILE: old_debts, REPAYMENTS_FILE: old_repayments},
+        "System error during repayment creation",
+        "Repayment creation aborted. No changes were saved."
+    )
+    if success:
         print("\nRepayment recorded successfully!")
-    except Exception as e:
-        try:
-            save_json_file(TRANSACTIONS_FILE, old_transactions)
-            save_json_file(ACCOUNTS_FILE, old_accounts)
-            save_json_file(DEBTS_FILE, old_debts)
-            save_json_file(REPAYMENTS_FILE, old_repayments)
-        except Exception as rollback_error:
-            print("\nCRITICAL SYSTEM ERROR")
-            print(f"Original Error: {e}")
-            print(f"Rollback Error: {rollback_error}")
-            print("Application could not guarantee data consistency.")
-            print("Please restore from backup and inspect data files.")
-            
-        print(f"\nSystem error during repayment creation: {e}")
-        print("Repayment creation aborted. No changes were saved.")
 
 
 def _reverse_transaction(transactions, accounts, transaction_id):
@@ -1472,27 +1460,14 @@ def delete_repayment():
         if debt["status"] == "CLOSED":
             debt["status"] = "ACTIVE"
 
-    try:
-        save_json_file(TRANSACTIONS_FILE, transactions)
-        save_json_file(ACCOUNTS_FILE, accounts)
-        save_json_file(DEBTS_FILE, debts)
-        save_json_file(REPAYMENTS_FILE, repayments)
+    success = _atomic_save(
+        {TRANSACTIONS_FILE: transactions, ACCOUNTS_FILE: accounts, DEBTS_FILE: debts, REPAYMENTS_FILE: repayments},
+        {TRANSACTIONS_FILE: old_transactions, ACCOUNTS_FILE: old_accounts, DEBTS_FILE: old_debts, REPAYMENTS_FILE: old_repayments},
+        "System error during repayment deletion",
+        "Repayment deletion aborted. No changes were saved."
+    )
+    if success:
         print("\nRepayment deleted successfully.")
-    except Exception as e:
-        try:
-            save_json_file(TRANSACTIONS_FILE, old_transactions)
-            save_json_file(ACCOUNTS_FILE, old_accounts)
-            save_json_file(DEBTS_FILE, old_debts)
-            save_json_file(REPAYMENTS_FILE, old_repayments)
-        except Exception as rollback_error:
-            print("\nCRITICAL SYSTEM ERROR")
-            print(f"Original Error: {e}")
-            print(f"Rollback Error: {rollback_error}")
-            print("Application could not guarantee data consistency.")
-            print("Please restore from backup and inspect data files.")
-            
-        print(f"\nSystem error during repayment deletion: {e}")
-        print("Repayment deletion aborted. No changes were saved.")
 
 def delete_debt():
     print("\n--- Delete Debt ---")
@@ -1532,25 +1507,14 @@ def delete_debt():
 
     debts.remove(selected_debt)
 
-    try:
-        save_json_file(TRANSACTIONS_FILE, transactions)
-        save_json_file(ACCOUNTS_FILE, accounts)
-        save_json_file(DEBTS_FILE, debts)
+    success = _atomic_save(
+        {TRANSACTIONS_FILE: transactions, ACCOUNTS_FILE: accounts, DEBTS_FILE: debts},
+        {TRANSACTIONS_FILE: old_transactions, ACCOUNTS_FILE: old_accounts, DEBTS_FILE: old_debts},
+        "System error during debt deletion",
+        "Debt deletion aborted. No changes were saved."
+    )
+    if success:
         print("\nDebt deleted successfully.")
-    except Exception as e:
-        try:
-            save_json_file(TRANSACTIONS_FILE, old_transactions)
-            save_json_file(ACCOUNTS_FILE, old_accounts)
-            save_json_file(DEBTS_FILE, old_debts)
-        except Exception as rollback_error:
-            print("\nCRITICAL SYSTEM ERROR")
-            print(f"Original Error: {e}")
-            print(f"Rollback Error: {rollback_error}")
-            print("Application could not guarantee data consistency.")
-            print("Please restore from backup and inspect data files.")
-            
-        print(f"\nSystem error during debt deletion: {e}")
-        print("Debt deletion aborted. No changes were saved.")
 
 def view_repayments():
     print("\n--- View Repayments ---")
@@ -1709,23 +1673,14 @@ def transfer_money():
     
     transactions.append(new_transaction)
     
-    try:
-        save_json_file(TRANSACTIONS_FILE, transactions)
-        save_json_file(ACCOUNTS_FILE, accounts)
+    success = _atomic_save(
+        {TRANSACTIONS_FILE: transactions, ACCOUNTS_FILE: accounts},
+        {TRANSACTIONS_FILE: old_transactions, ACCOUNTS_FILE: old_accounts},
+        "System error during transfer",
+        "Transfer aborted. No changes were saved."
+    )
+    if success:
         print("\nTransfer executed successfully!")
-    except Exception as e:
-        try:
-            save_json_file(TRANSACTIONS_FILE, old_transactions)
-            save_json_file(ACCOUNTS_FILE, old_accounts)
-        except Exception as rollback_error:
-            print("\nCRITICAL SYSTEM ERROR")
-            print(f"Original Error: {e}")
-            print(f"Rollback Error: {rollback_error}")
-            print("Application could not guarantee data consistency.")
-            print("Please restore from backup and inspect data files.")
-            
-        print(f"\nSystem error during transfer: {e}")
-        print("Transfer aborted. No changes were saved.")
 
 
 def delete_transfer():
@@ -1792,23 +1747,14 @@ def delete_transfer():
             del transactions[idx_t]
             break
     
-    try:
-        save_json_file(TRANSACTIONS_FILE, transactions)
-        save_json_file(ACCOUNTS_FILE, accounts)
+    success = _atomic_save(
+        {TRANSACTIONS_FILE: transactions, ACCOUNTS_FILE: accounts},
+        {TRANSACTIONS_FILE: old_transactions, ACCOUNTS_FILE: old_accounts},
+        "System error during deletion",
+        "Deletion aborted. No changes were saved."
+    )
+    if success:
         print("\nTransfer deleted and balances reversed successfully.")
-    except Exception as e:
-        try:
-            save_json_file(TRANSACTIONS_FILE, old_transactions)
-            save_json_file(ACCOUNTS_FILE, old_accounts)
-        except Exception as rollback_error:
-            print("\nCRITICAL SYSTEM ERROR")
-            print(f"Original Error: {e}")
-            print(f"Rollback Error: {rollback_error}")
-            print("Application could not guarantee data consistency.")
-            print("Please restore from backup and inspect data files.")
-            
-        print(f"\nSystem error during deletion: {e}")
-        print("Deletion aborted. No changes were saved.")
 
 
 def manage_categories():
