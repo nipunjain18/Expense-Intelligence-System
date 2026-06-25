@@ -1,61 +1,76 @@
 # Expense Intelligence System
 
 ![Python](https://img.shields.io/badge/Python-3.x-blue)
-![Version](https://img.shields.io/badge/Version-1.0.0-success)
+![Version](https://img.shields.io/badge/Version-1.1.0-success)
 ![Storage](https://img.shields.io/badge/Storage-JSON-orange)
 ![Testing](https://img.shields.io/badge/QA-14%20Test%20Groups-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Stable-success)
 
-A production-focused Python CLI personal finance system featuring relational JSON storage, rollback-protected transactions, corruption recovery, and extensive QA testing.
+An engineering-focused Python CLI personal finance project demonstrating resilient software design, relational JSON storage, modular architecture, rollback-protected transactions, corruption recovery, and extensive QA testing.
 
 The Expense Intelligence System is a terminal-based personal finance management application built in Python. It goes beyond basic CRUD operations by enforcing financial business rules, maintaining relational integrity across JSON data stores, and implementing rollback-protected multi-file transactions without a traditional database.
 
 ## Current Status
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 
 **Status:** Stable Release
 
-## Version 1 Highlights
+*Note: Version 1.1.0 focuses exclusively on engineering improvements, internal architecture, and code modularity rather than new user-facing features.*
 
-- 9 core financial modules completed
-- 14 structured QA test groups completed
-- 8 critical bugs discovered and fixed
-- Rollback-protected multi-file transactions
-- Corruption recovery system
-- Stress tested with 50,000 transactions
+## Version History
 
-## Tech Stack
+| Version | Description |
+| ------- | ----------- |
+| v1.0.0  | First stable release with complete financial management functionality. |
+| v1.1.0  | Internal engineering refactoring, improved architecture, reduced code duplication, no functional changes. |
 
-- Python
-- JSON Storage
-- Git
-- GitHub
+## Engineering Improvements (v1.1.0)
+
+The v1.1.0 release is a dedicated refactoring cycle focused on improving the system's maintainability and structural integrity. Key engineering outcomes include:
+
+* **Reduced Duplicated Code:** Eliminated deeply nested, repetitive validation and persistence boilerplate.
+* **Modular Architecture:** Extracted monolithic functions into specialized, single-purpose handlers.
+* **Reusable Helper Functions:** Centralized shared logic for ID generation, data persistence, and transaction reversal.
+* **Improved Maintainability:** Simplified core workflows by separating UI components from business logic and validation.
+* **Refined Rollback Strategy:** Consolidated identical multi-file rollback blocks into a single, unified atomic save helper.
+* **Regression-Tested Refactoring:** Regression-tested refactoring that preserves existing application behavior.
 
 ---
 
 ## Table of Contents
 - [Overview](#overview)
+- [Design Principles](#design-principles)
 - [Key Features](#key-features)
 - [Technical Highlights](#technical-highlights)
 - [Architecture](#architecture)
 - [Project Structure](#project-structure)
+- [Documentation](#documentation)
 - [Getting Started](#getting-started)
 - [Testing Summary](#testing-summary)
+- [Version Statistics](#version-statistics)
 - [Critical Bugs Fixed](#critical-bugs-fixed)
 - [Performance](#performance)
 - [Lessons Learned](#lessons-learned)
 - [Skills Demonstrated](#skills-demonstrated)
 - [Version 2 Roadmap](#version-2-roadmap)
+- [License](#license)
 
 ---
 
 ## Overview
 This system was built to explore software engineering resilience by constructing a strict financial ledger from scratch. It is an exploration of how to make software survive hostile edge cases, corrupted states, and persistence failures using atomic constraints and rigid validation logic.
 
-## Why This Project Matters
+## Design Principles
 
-While most personal finance projects stop at basic CRUD operations, this project was designed specifically to tackle core software engineering concerns. It focuses heavily on relational data modeling, rollback-protected transactions, corruption recovery, and defensive validation. The primary goal was not just to build a feature-complete application, but to construct a highly resilient system that guarantees referential integrity and survives hostile environments, validated by 14 structured QA test groups.
+The system is built upon strict engineering principles designed to maximize resilience:
+
+* **Data integrity over convenience:** Enforcing strict constraints at the boundary.
+* **Defensive programming:** Anticipating and mitigating hostile inputs and edge cases.
+* **Single source of truth:** Eliminating duplicated or derived state.
+* **Separation of concerns:** Decoupling UI rendering from business logic.
+* **Maintainability:** Utilizing modular, reusable components.
+* **Reliable file-based persistence:** Guaranteeing atomic multi-file operations.
 
 ---
 
@@ -83,10 +98,11 @@ While most personal finance projects stop at basic CRUD operations, this project
 ## Technical Highlights
 
 * **Python CLI Application:** Built with zero external dependencies.
+* **Modular Helper-Based Architecture:** High cohesion and separation of concerns through specialized utility functions.
+* **Centralized Validation & Persistence:** Unified boundary checks and a single generic handler for all file I/O rollbacks.
 * **JSON Database Architecture:** Emulates relational database tables using discrete flat files.
 * **Relational Data Modeling:** Uses integer IDs as foreign keys to maintain referential integrity.
 * **Atomic Transactions:** Implements rollback-protected multi-file transactions using `copy.deepcopy()`.
-* **Validation Layers:** Centralized type, boundary, and business logic validation.
 * **Corruption Recovery:** Centralized I/O wrappers trap `JSONDecodeError` to prevent fatal crashes.
 * **Single Source of Truth:** Eliminates duplicated state to ensure metrics never desynchronize.
 
@@ -132,9 +148,19 @@ Expense-Intelligence-System/
 │   ├── repayments.json         # Debt settlement logs
 │   └── transactions.json       # Immutable financial ledger
 └── docs/
-    ├── learning_notes.md          # Engineering lessons and architecture insights
-    └── project_documentation.md   # System workflows and schema definitions
+    └── Notes/
+        ├── Code_Understanding_Handbook.md    # System modules and logic
+        └── Version_1_Engineering_Handbook.md # Architecture and engineering decisions
 ```
+
+---
+
+## Documentation
+
+Comprehensive documentation is available for developers reviewing the system:
+
+* **[Engineering Handbook](docs/Notes/Version_1_Engineering_Handbook.md):** Architectural insights, workflow definitions, and engineering lessons.
+* **[Code Understanding Handbook](docs/Notes/Code_Understanding_Handbook.md):** Deep dive into system modules, validation layers, and logic flows.
 
 ---
 
@@ -167,7 +193,7 @@ The application was subjected to rigorous QA simulating extreme environments acr
 
 ---
 
-## Version 1 Statistics
+## Version Statistics
 
 | Metric | Value |
 |----------|----------|
@@ -247,5 +273,11 @@ The system's JSON processing capabilities were heavily stress-tested using artif
 - [ ] Report export functionality
 - [ ] AI-powered financial insights
 - [ ] Improved architecture and modularization
+
+---
+
+## License
+
+This project is licensed under the MIT License.
 
 

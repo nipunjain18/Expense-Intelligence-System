@@ -141,7 +141,7 @@ User Action: Food Expense ₹500
 - **Step 1:** The system deepcopies the current lists in memory (Safety net).
 - **Step 2:** The system reduces the Account Balance in memory: `10000 -> 9500`.
 - **Step 3:** The system creates an Expense Transaction record for ₹500.
-- **Step 4:** The system attempts an atomic save: `save_transactions()` then `save_accounts()`.
+- **Step 4:** The system delegates to `_atomic_save()` to handle writing to both files safely.
 
 **After:**
 Account Balance: ₹9500
@@ -159,7 +159,7 @@ User Action: Salary Income ₹5,000
 - **Step 1:** Deepcopy lists.
 - **Step 2:** Increase Account Balance: `10000 -> 15000`.
 - **Step 3:** Create Income Transaction record for ₹5,000.
-- **Step 4:** Atomic save both files.
+- **Step 4:** Delegate to `_atomic_save()` for both files.
 
 ### Transfer Example
 **Before:**
@@ -231,8 +231,7 @@ main()
 │       ├── select_transaction_category()
 │       ├── get_valid_amount()
 │       ├── generate_transaction_id()
-│       ├── save_transactions()
-│       └── save_accounts()
+│       └── _atomic_save()
 │
 ├── 4. View Transactions
 │   └── view_transactions()
@@ -246,8 +245,7 @@ main()
 │       ├── select_account() (Destination)
 │       ├── get_valid_amount()
 │       ├── generate_transaction_id()
-│       ├── save_transactions()
-│       └── save_accounts()
+│       └── _atomic_save()
 │
 ├── 6. Manage Categories
 │   ├── add_category()
@@ -317,7 +315,7 @@ This is the most critical section. We are going to rip open the most important f
   - **Step 5:** Deepcopy Memory. (Why? If the save fails halfway, we need to restore the pristine state).
   - **Step 6:** Math Check. (If Income: `balance + amount`. If Expense: `balance - amount`).
   - **Step 7:** Create Transaction Dict.
-  - **Step 8:** Save both files.
+  - **Step 8:** Call `_atomic_save()` passing the new and backup memory states.
 
 ### `add_debt()`
 - **Purpose:** Creates a new IOU.
@@ -333,7 +331,7 @@ This is the most critical section. We are going to rip open the most important f
   - **Step 5:** Deepcopy all 3 lists.
   - **Step 6:** Call `create_debt_transaction()`. (Why? We need a transaction record to explain where the money went. This helper function modifies the account balance AND appends the transaction).
   - **Step 7:** Create Debt Dict. Link it to the `transaction_id`.
-  - **Step 8:** Atomic save all 3 files.
+  - **Step 8:** Call `_atomic_save()` for all 3 files.
 
 ### `add_repayment()`
 - **Purpose:** Fulfill part of a Debt.
@@ -347,7 +345,7 @@ This is the most critical section. We are going to rip open the most important f
   - **Step 6:** Create Repayment Dict.
   - **Step 7:** Deduct amount from `debt["remaining_amount"]`.
   - **Step 8:** Call `update_debt_status()`. (Why? If remaining is 0, it flips status to CLOSED).
-  - **Step 9:** Atomic save 4 files.
+  - **Step 9:** Call `_atomic_save()` for all 4 files.
 
 ### `delete_repayment()`
 - **Purpose:** Reverse an accidental repayment entry.
@@ -355,11 +353,11 @@ This is the most critical section. We are going to rip open the most important f
 - **Step-by-Step Execution:**
   - **Step 1:** Locate the Repayment. Look up the Debt, Transaction, and Account it touches.
   - **Step 2:** Deepcopy 4 lists.
-  - **Step 3:** Reverse the math. If it was Lent money coming back (Income), subtract it from the Account. Add it back to the Debt `remaining_amount`.
-  - **Step 4:** `transactions.remove(transaction_dict)`.
+  - **Step 3:** Call `_reverse_transaction()` to handle account math and transaction removal.
+  - **Step 4:** Add amount back to Debt `remaining_amount`.
   - **Step 5:** `repayments.remove(repayment_dict)`.
-  - **Step 6:** Set Debt status back to "ACTIVE". (Why? If this repayment closed the debt, reversing it means the debt is alive again).
-  - **Step 7:** Atomic save.
+  - **Step 6:** Call `update_debt_status()` to flip it back to ACTIVE if necessary.
+  - **Step 7:** Call `_atomic_save()`.
 
 ### `transfer_money()`
 - **Purpose:** Move money between accounts.
@@ -371,7 +369,7 @@ This is the most critical section. We are going to rip open the most important f
   - **Step 4:** Deepcopy lists.
   - **Step 5:** Deduct Source balance. Add to Destination balance.
   - **Step 6:** Create ONE Transaction. Instead of `category_id`, it uses `from_account_id` and `to_account_id`.
-  - **Step 7:** Atomic save.
+  - **Step 7:** Call `_atomic_save()`.
 
 ### `show_dashboard()`
 - **Purpose:** The analytics brain.
@@ -446,8 +444,7 @@ _add_transaction()
 ├── load_transactions()
 ├── get_valid_amount()
 ├── generate_transaction_id()
-├── save_transactions()
-└── save_accounts()
+└── _atomic_save()
 ```
 - **Purpose:** Primary mutation loop for cash flow.
 - **Why called:** To record Income or Expense.
@@ -483,9 +480,7 @@ add_debt()
 │   ├── generate_transaction_id()
 │   └── (mutates account balance)
 ├── generate_debt_id()
-├── save_transactions()
-├── save_accounts()
-└── save_debts()
+└── _atomic_save()
 ```
 - **Purpose:** Create an IOU.
 - **Why called:** Track money lent or borrowed.
@@ -507,10 +502,7 @@ add_repayment()
 │   └── (mutates account balance)
 ├── generate_repayment_id()
 ├── update_debt_status()
-├── save_transactions()
-├── save_accounts()
-├── save_debts()
-└── save_repayments()
+└── _atomic_save()
 ```
 - **Purpose:** Log a partial or full fulfillment.
 - **Why called:** User received owed money.
@@ -524,10 +516,7 @@ delete_repayment()
 ├── load_debts()
 ├── load_transactions()
 ├── load_accounts()
-├── save_transactions()
-├── save_accounts()
-├── save_debts()
-└── save_repayments()
+└── _atomic_save()
 ```
 - **Purpose:** Reverse an accidental repayment.
 - **Why called:** Data entry mistake.
@@ -541,9 +530,7 @@ delete_debt()
 ├── load_repayments() (to check blocks)
 ├── load_transactions()
 ├── load_accounts()
-├── save_transactions()
-├── save_accounts()
-└── save_debts()
+└── _atomic_save()
 ```
 - **Purpose:** Reverse debt creation.
 - **Why called:** Data entry mistake.
@@ -559,8 +546,7 @@ transfer_money()
 ├── load_transactions()
 ├── get_valid_amount()
 ├── generate_transaction_id()
-├── save_transactions()
-└── save_accounts()
+└── _atomic_save()
 ```
 - **Purpose:** Move money safely.
 - **Why called:** Lateral cash movement.
@@ -572,8 +558,7 @@ delete_transfer()
 │
 ├── load_transactions()
 ├── load_accounts()
-├── save_transactions()
-└── save_accounts()
+└── _atomic_save()
 ```
 - **Purpose:** Reverse lateral move.
 - **Why called:** Data entry mistake.
@@ -817,8 +802,8 @@ When things break in production, follow this playbook.
 
 If you open `main.py` today, DO NOT read it from top to bottom. Read it in this exact order:
 
-**1. Storage Functions (`load_*`, `save_*`)**
-- **Why:** Understand how data moves from disk to RAM. Notice the `try...except` blocks protecting against corruption.
+**1. Storage Functions (`load_*`, `save_*`, `_atomic_save`)**
+- **Why:** Understand how data moves from disk to RAM. Notice the `try...except` blocks protecting against corruption, and how `_atomic_save` guarantees multi-file consistency.
 
 **2. Validation Functions (`get_valid_amount`)**
 - **Why:** Understand the gates. See how `math.isfinite` protects the whole application.
@@ -827,7 +812,7 @@ If you open `main.py` today, DO NOT read it from top to bottom. Read it in this 
 - **Why:** The easiest module. Understand how IDs are generated (`max() + 1`) and how data is appended.
 
 **4. Transactions (`_add_transaction`)**
-- **Why:** This introduces the Deepcopy rollback pattern. Master this before moving on.
+- **Why:** This introduces the Deepcopy rollback pattern and how it ties into `_atomic_save`. Master this before moving on.
 
 **5. Transfers (`transfer_money`)**
 - **Why:** Understand how two accounts are mutated simultaneously, but only one transaction is written.

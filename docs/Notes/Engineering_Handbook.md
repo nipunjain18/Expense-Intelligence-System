@@ -1,4 +1,4 @@
-﻿# Expense Intelligence System - Version 1 Engineering Handbook
+﻿# Expense Intelligence System - Version 1.1.0 Engineering Handbook
 
 ---
 
@@ -10,8 +10,8 @@ The Expense Intelligence System is a terminal-based Personal Finance Management 
 **What Problem It Solves**
 The system solves the problem of rigorously tracking income, expenses, complex interpersonal debts (borrowing, lending, partial repayments), and inter-account transfers. It ensures that money doesn't simply "disappear" across disparate accounts without a trace, maintaining strict referential integrity.
 
-**Final Version 1 Status**
-Version 1 is a Stable Release Candidate, considered feature-complete for personal production use. It successfully passed comprehensive functional, integration, rollback, and stress testing.
+**Version 1.1.0 Status**
+Version 1.1.0 is a Stable, Feature-complete release. The engineering refactoring is completed, establishing a solid foundation for Version 2. It successfully passed comprehensive functional, integration, rollback, and stress testing.
 
 **Major Capabilities**
 - Multi-account balance tracking
@@ -22,8 +22,8 @@ Version 1 is a Stable Release Candidate, considered feature-complete for persona
 - Centralized read-only aggregation dashboard
 
 **Key Achievements**
-- Zero-database architecture using purely JSON arrays.
-- Implemented robust `copy.deepcopy()` rollback mechanisms ensuring atomic writes.
+- Identifier-based file architecture using purely JSON arrays.
+- Implemented robust `copy.deepcopy()` rollback mechanisms ensuring atomic-like multi-file writes.
 - Discovered and mitigated deep language-level flaws (e.g., `float("nan")` vulnerabilities) via hardened validation systems.
 
 ---
@@ -84,7 +84,7 @@ The system relies on five independent JSON schemas.
 - **Constraints:** Date $\ge$ Debt `created_date`. Amount $\le$ Debt `remaining_amount`.
 
 ### Why IDs Instead of Names
-The architecture strictly enforces **Relational Integrity** by using integer IDs (`account_id`, `category_id`, etc.) rather than string names. If a transaction stored the literal string `"Bank"` instead of `account_id: 1`, renaming the account to `"Checking"` would instantly break the linkage for thousands of historical records. Integer IDs decouple the data's identity from its presentation, allowing safe renaming and soft-deletion without cascading data corruption.
+The architecture strictly enforces **Identifier-Based Linkage** by using integer IDs (`account_id`, `category_id`, etc.) rather than string names. If a transaction stored the literal string `"Bank"` instead of `account_id: 1`, renaming the account to `"Checking"` would instantly break the linkage for thousands of historical records. Integer IDs decouple the data's identity from its presentation, allowing safe renaming and soft-deletion without cascading data corruption.
 
 ---
 
@@ -345,16 +345,22 @@ QA was executed progressively across 14 Test Groups, isolating modules before at
 
 ---
 
-## 12. Refactoring Analysis
+## 12. Refactoring Retrospective (Version 1.1.0)
 
-### Current Architecture Weaknesses
-- **Large `main.py`:** The monolithic 1,900-line file causes cognitive overload during maintenance. 
-- **Lookup Inefficiencies:** Relying on list iterations (`next(x for x in list)`) instead of Hash Maps/Dictionaries ($O(1)$) crippled scaling performance.
-- **Duplicate Logic:** Features like Transfers implemented custom prompt loops instead of leveraging a parameterized central prompt manager.
-- **Technical Debt:** Uncaught base `Exception` blocks in rollbacks inherently trap `KeyboardInterrupt`, preventing clean CLI exits.
+### What Problems Existed Before Refactoring
+- **Monolithic `main.py`:** A massive 1,900-line file caused cognitive overload.
+- **Duplicate Logic:** Many features manually implemented their own validation and rollback logic.
+- **Tangled Responsibilities:** Saving logic, input validation, and business rules were heavily intertwined inside feature functions.
 
-**Recommended Improvements:**
-Modularize the codebase, implement Dictionary lookups immediately upon JSON load, and parameterize validation loops.
+### What Improvements Version 1.1.0 Introduced
+- **Helper Extraction:** Massively reduced code duplication by extracting reusable helpers for data lookups and validation.
+- **Centralized Rollback:** Introduced `_atomic_save()` to handle all multi-file rollbacks, guaranteeing absolute uniformity across the system.
+- **Separation of Responsibilities:** Cleaned up the function dependencies, significantly improving code maintainability.
+
+### What Limitations & Technical Debt Remain
+- **Single File:** The application is still largely contained within a single `main.py` file, though much cleaner.
+- **File Limits:** Relying on JSON arrays means loading the entire dataset into RAM, which will eventually hit performance bottlenecks at extreme scales.
+- **Lookup Inefficiencies:** Resolving relationships still relies heavily on $O(N)$ list iterations.
 
 ---
 
@@ -431,32 +437,31 @@ If you decide to refactor this code, you need to know what will explode.
 
 ## 15. Version 2 Roadmap
 
-**1. Immediate Refactoring (High Priority)**
-- Implement $O(1)$ dictionary lookups for Accounts and Categories to instantly resolve scaling bottlenecks.
-- Parameterize `get_valid_amount()` to eliminate duplicate transfer/repayment `while` loops.
+**1. Modular Architecture (High Priority)**
+- Split the refactored `main.py` into distinct modules (`storage.py`, `models/`, `views/`, and `utils.py`).
 
-**2. Modular Architecture (High Priority)**
-- Split `main.py` into `storage.py`, `models/`, `views/`, and `utils.py`.
+**2. Database-Backed Persistence (High Priority)**
+- Migrate from JSON arrays to a relational database (e.g., SQLite/PostgreSQL) to natively handle constraints, WAL atomicity, and memory limits.
 
 **3. Automated Testing (Medium Priority)**
-- Implement `pytest` suites to automate the 14 manual QA groups, protecting against future regressions.
+- Implement automated test suites to replace the 14 manual QA groups, protecting against future regressions.
 
-**4. Logging & Analytics (Medium Priority)**
-- Add an `application.log` file to record rollback triggers and validation failures.
-- Add Category-specific budgeting and trend analysis.
+**4. Web Application Interface (Medium Priority)**
+- Build a web-based UI to replace the CLI, improving user experience and accessibility.
 
-**5. SQLite Migration (Low Priority / V3)**
-- Migrate from JSON arrays to a relational database to natively handle constraints, WAL atomicity, and memory limits.
+**5. Logging & Analytics (Low Priority)**
+- Add an `application.log` file to record critical backend events.
+- Implement advanced analytics and AI-assisted financial insights.
 
 ---
 
 ## 16. Project Metrics
 
-- **Code Size:** ~1,900 lines (single `main.py` monolithic script)
+- **Code Size:** Significantly condensed single `main.py` script after extensive helper extraction
 - **Total Features:** 9 Core Modules
 - **Data Persistence:** 5 distinct JSON schemas
 - **Critical Bug Fixes Executed:** 8 Core architecture flaws mitigated
 - **QA Test Groups Executed:** 14 structured phases
 - **Stress Testing Peak:** Handled 50,000 transactions simultaneously
-- **Release:** Version 1.0.0 (Stable)
+- **Release:** Version 1.1.0 (Stable)
 
