@@ -972,24 +972,16 @@ def calculate_net_debt_position(total_lent_remaining, total_borrowed_remaining):
     return round(total_lent_remaining - total_borrowed_remaining, 2)
 
 
-def show_dashboard():
-    print("\n--- Dashboard ---")
-
-    accounts = load_accounts()
-    transactions = load_transactions()
-    debts = load_debts()
-    categories = load_categories()
-
-    total_balance = calculate_total_balance(accounts)
-    total_income, total_expenses, net_cash_flow = calculate_income_expense_summary(transactions)
-
+def _display_financial_overview(total_balance, account_count, total_income, total_expenses, net_cash_flow):
     print("\n## Financial Overview")
     print(f"  Total Balance        : {format_currency(total_balance)}")
-    print(f"  Total Account Count  : {len(accounts)}")
+    print(f"  Total Account Count  : {account_count}")
     print(f"  Total Income         : {format_currency(total_income)}")
     print(f"  Total Expenses       : {format_currency(total_expenses)}")
     print(f"  Net Cash Flow        : {format_signed_currency(net_cash_flow)}")
 
+
+def _display_account_summary(accounts):
     print("\n## Account Summary")
     account_summary = calculate_account_summary(accounts)
     if len(account_summary) == 0:
@@ -1001,14 +993,16 @@ def show_dashboard():
         for account in account_summary:
             print(f"  {account['name']:<25}{format_currency(account['balance']):>15}")
 
-    total_lent_remaining, total_borrowed_remaining, active_debt_count, closed_debt_count = calculate_debt_summary(debts)
 
+def _display_debt_summary(total_lent_remaining, total_borrowed_remaining, active_debt_count, closed_debt_count):
     print("\n## Debt Summary")
     print(f"  Total Lent Amount Remaining     : {format_currency(total_lent_remaining)}")
     print(f"  Total Borrowed Amount Remaining : {format_currency(total_borrowed_remaining)}")
     print(f"  Active Debt Count               : {active_debt_count}")
     print(f"  Closed Debt Count               : {closed_debt_count}")
 
+
+def _display_top_expense_categories(transactions, categories):
     print("\n## Top Expense Categories")
     top_expense_categories = calculate_top_expense_categories(transactions)
     if len(top_expense_categories) == 0:
@@ -1021,6 +1015,8 @@ def show_dashboard():
             category_name = get_category_name(category_id, categories)
             print(f"  {category_name:<25}{format_currency(total_amount):>15}")
 
+
+def _display_recent_activity(transactions, accounts, categories):
     print("\n## Recent Activity")
     recent_transactions = get_recent_transactions(transactions)
     if len(recent_transactions) == 0:
@@ -1047,12 +1043,36 @@ def show_dashboard():
                 f"{formatted_amount:>15}"
             )
 
+
+def _display_net_debt_position(total_lent_remaining, total_borrowed_remaining):
     net_debt_position = calculate_net_debt_position(total_lent_remaining, total_borrowed_remaining)
 
     print("\n## Net Debt Position")
     print(f"  Money Owed To You : {format_currency(total_lent_remaining)}")
     print(f"  Money You Owe     : {format_currency(total_borrowed_remaining)}")
     print(f"  Net Position      : {format_signed_currency(net_debt_position)}")
+
+
+def show_dashboard():
+    print("\n--- Dashboard ---")
+
+    accounts = load_accounts()
+    transactions = load_transactions()
+    debts = load_debts()
+    categories = load_categories()
+
+    total_balance = calculate_total_balance(accounts)
+    total_income, total_expenses, net_cash_flow = calculate_income_expense_summary(transactions)
+
+    _display_financial_overview(total_balance, len(accounts), total_income, total_expenses, net_cash_flow)
+    _display_account_summary(accounts)
+
+    total_lent_remaining, total_borrowed_remaining, active_debt_count, closed_debt_count = calculate_debt_summary(debts)
+    _display_debt_summary(total_lent_remaining, total_borrowed_remaining, active_debt_count, closed_debt_count)
+
+    _display_top_expense_categories(transactions, categories)
+    _display_recent_activity(transactions, accounts, categories)
+    _display_net_debt_position(total_lent_remaining, total_borrowed_remaining)
 
 
 def find_active_debts_by_person(debts, person_name):
@@ -1121,15 +1141,7 @@ def update_debt_status(debt):
 
 
 
-def add_debt():
-    print("\n--- Add New Debt ---")
-    get_or_create_debt_categories()
-    
-    accounts = load_accounts()
-    if len(accounts) == 0:
-        print("\nNo accounts found. Create an account first.")
-        return
-        
+def _get_valid_debt_type():
     print("\nDebt Types:")
     for i, t in enumerate(VALID_DEBT_TYPES, start=1):
         print(f"  {i}. {t}")
@@ -1137,22 +1149,14 @@ def add_debt():
     while True:
         choice = input("Enter the number of your debt type: ").strip()
         if choice == "1":
-            debt_type = "LENT"
-            break
+            return "LENT"
         elif choice == "2":
-            debt_type = "BORROWED"
-            break
+            return "BORROWED"
         else:
             print("Invalid choice.")
-            
-    account = select_account(accounts)
-    
-    if debt_type == "LENT" and account["balance"] == 0:
-        print("\nThis account has no available balance for lending.")
-        return
-        
-    debts = load_debts()
-    
+
+
+def _get_valid_person_name(debts):
     while True:
         person_name = input("Enter person name: ").strip()
         if not person_name:
@@ -1170,8 +1174,32 @@ def add_debt():
             action = input("Choose option (1-2): ").strip()
             if action != "1":
                 print("Cancelled.")
-                return
-        break
+                return None
+        return person_name
+
+
+def add_debt():
+    print("\n--- Add New Debt ---")
+    get_or_create_debt_categories()
+    
+    accounts = load_accounts()
+    if len(accounts) == 0:
+        print("\nNo accounts found. Create an account first.")
+        return
+        
+    debt_type = _get_valid_debt_type()
+            
+    account = select_account(accounts)
+    
+    if debt_type == "LENT" and account["balance"] == 0:
+        print("\nThis account has no available balance for lending.")
+        return
+        
+    debts = load_debts()
+    
+    person_name = _get_valid_person_name(debts)
+    if not person_name:
+        return
         
     amount = get_valid_amount("Expense" if debt_type == "LENT" else "Income", account["balance"])
     
@@ -1262,6 +1290,41 @@ def view_debts():
         print("\n## Closed Debts")
         display_debts_table(closed_debts)
 
+def _get_valid_repayment_amount(selected_debt, account):
+    while True:
+        amount_str = input("Enter repayment amount: ").strip()
+        try:
+            amount = float(amount_str)
+        except ValueError:
+            print("Invalid amount.")
+            continue
+            
+        if not math.isfinite(amount):
+            print("Invalid amount. Please enter a finite number.")
+            continue
+
+        if amount <= 0:
+            print("Amount must be greater than zero.")
+            continue
+            
+        if amount > selected_debt["remaining_amount"]:
+            print(f"\nOverpayment detected. Remaining debt is only {format_currency(selected_debt['remaining_amount'])}.")
+            print("1. Record exact remaining amount only")
+            print("2. Cancel")
+            action = input("Choose option (1-2): ").strip()
+            if action == "1":
+                amount = selected_debt["remaining_amount"]
+                break
+            else:
+                print("Cancelled.")
+                return None
+                
+        if selected_debt["type"] == "BORROWED" and amount > account["balance"]:
+            print(f"\nError: Insufficient balance in {account['name']} to pay {format_currency(amount)}.")
+            return None
+
+        return amount
+
 def add_repayment():
     print("\n--- Record Repayment ---")
     debts = load_debts()
@@ -1291,39 +1354,9 @@ def add_repayment():
         min_date=debt_date
     )
         
-    while True:
-        amount_str = input("Enter repayment amount: ").strip()
-        try:
-            amount = float(amount_str)
-        except ValueError:
-            print("Invalid amount.")
-            continue
-            
-        if not math.isfinite(amount):
-            print("Invalid amount. Please enter a finite number.")
-            continue
-
-        if amount <= 0:
-            print("Amount must be greater than zero.")
-            continue
-            
-        if amount > selected_debt["remaining_amount"]:
-            print(f"\nOverpayment detected. Remaining debt is only {format_currency(selected_debt['remaining_amount'])}.")
-            print("1. Record exact remaining amount only")
-            print("2. Cancel")
-            action = input("Choose option (1-2): ").strip()
-            if action == "1":
-                amount = selected_debt["remaining_amount"]
-                break
-            else:
-                print("Cancelled.")
-                return
-                
-        if selected_debt["type"] == "BORROWED" and amount > account["balance"]:
-            print(f"\nError: Insufficient balance in {account['name']} to pay {format_currency(amount)}.")
-            return
-
-        break
+    amount = _get_valid_repayment_amount(selected_debt, account)
+    if amount is None:
+        return
         
     transactions = load_transactions()
     repayments = load_repayments()
@@ -1373,6 +1406,24 @@ def add_repayment():
         print("Repayment creation aborted. No changes were saved.")
 
 
+def _reverse_transaction(transactions, accounts, transaction_id):
+    trans_to_delete = None
+    for i, t in enumerate(transactions):
+        if t["transaction_id"] == transaction_id:
+            trans_to_delete = t
+            del transactions[i]
+            break
+
+    if trans_to_delete:
+        for account in accounts:
+            if account["account_id"] == trans_to_delete["account_id"]:
+                if trans_to_delete["type"] == "Income":
+                    account["balance"] = round(account["balance"] - trans_to_delete["amount"], 2)
+                else:
+                    account["balance"] = round(account["balance"] + trans_to_delete["amount"], 2)
+                break
+
+
 def delete_repayment():
     print("\n--- Delete Repayment ---")
     repayments = load_repayments()
@@ -1409,21 +1460,7 @@ def delete_repayment():
     old_debts = copy.deepcopy(debts)
     old_repayments = copy.deepcopy(repayments)
 
-    trans_to_delete = None
-    for i, t in enumerate(transactions):
-        if t["transaction_id"] == selected_rep["transaction_id"]:
-            trans_to_delete = t
-            del transactions[i]
-            break
-
-    if trans_to_delete:
-        for account in accounts:
-            if account["account_id"] == trans_to_delete["account_id"]:
-                if trans_to_delete["type"] == "Income":
-                    account["balance"] = round(account["balance"] - trans_to_delete["amount"], 2)
-                else:
-                    account["balance"] = round(account["balance"] + trans_to_delete["amount"], 2)
-                break
+    _reverse_transaction(transactions, accounts, selected_rep["transaction_id"])
 
     repayments.remove(selected_rep)
 
@@ -1491,21 +1528,7 @@ def delete_debt():
     old_accounts = copy.deepcopy(accounts)
     old_debts = copy.deepcopy(debts)
 
-    trans_to_delete = None
-    for i, t in enumerate(transactions):
-        if t["transaction_id"] == selected_debt["transaction_id"]:
-            trans_to_delete = t
-            del transactions[i]
-            break
-
-    if trans_to_delete:
-        for account in accounts:
-            if account["account_id"] == trans_to_delete["account_id"]:
-                if trans_to_delete["type"] == "Income":
-                    account["balance"] = round(account["balance"] - trans_to_delete["amount"], 2)
-                else:
-                    account["balance"] = round(account["balance"] + trans_to_delete["amount"], 2)
-                break
+    _reverse_transaction(transactions, accounts, selected_debt["transaction_id"])
 
     debts.remove(selected_debt)
 
@@ -1594,24 +1617,7 @@ def is_account_referenced_by_transfers(account_id):
     return False
 
 
-def transfer_money():
-    print("\n--- Transfer Money ---")
-    
-    accounts = load_accounts()
-    if len(accounts) < 2:
-        print("\nYou need at least two accounts to make a transfer.")
-        return
-        
-    print("\nSelect Source Account:")
-    from_account = select_account(accounts)
-    
-    print("\nSelect Destination Account:")
-    to_account = select_account(accounts)
-    
-    if from_account["account_id"] == to_account["account_id"]:
-        print("\nError: Source and destination accounts must be different.")
-        return
-        
+def _get_valid_transfer_amount(from_account):
     while True:
         amount_input = input("Enter amount: ").strip()
         try:
@@ -1632,21 +1638,42 @@ def transfer_money():
             print(f"Error: Insufficient balance in {from_account['name']}. Available: {format_currency(from_account['balance'])}.")
             continue
             
-        break
-        
+        return amount
+
+def _get_valid_transfer_date():
     while True:
         date_str = input(f"Enter date (YYYY-MM-DD) [default {date.today()}]: ").strip()
         if not date_str:
-            date_str = str(date.today())
-            break
+            return str(date.today())
         try:
             parsed_date = date.fromisoformat(date_str)
             if parsed_date > date.today():
                 print("Error: Transfer date cannot be in the future. Please try again.")
                 continue
-            break
+            return date_str
         except ValueError:
             print("Invalid date format. Please try again.")
+
+def transfer_money():
+    print("\n--- Transfer Money ---")
+    
+    accounts = load_accounts()
+    if len(accounts) < 2:
+        print("\nYou need at least two accounts to make a transfer.")
+        return
+        
+    print("\nSelect Source Account:")
+    from_account = select_account(accounts)
+    
+    print("\nSelect Destination Account:")
+    to_account = select_account(accounts)
+    
+    if from_account["account_id"] == to_account["account_id"]:
+        print("\nError: Source and destination accounts must be different.")
+        return
+        
+    amount = _get_valid_transfer_amount(from_account)
+    date_str = _get_valid_transfer_date()
             
     notes = input("Enter notes (optional): ").strip()
     
