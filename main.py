@@ -76,6 +76,28 @@ def generate_id(items, id_key):
     return max(item[id_key] for item in items) + 1
 
 
+def select_from_list(items, prompt, display_func=None):
+    if not items:
+        print("\nNo items available.")
+        return None
+        
+    for i, item in enumerate(items, start=1):
+        if display_func:
+            print(f"  {i}. {display_func(item)}")
+        else:
+            print(f"  {i}. {item}")
+            
+    while True:
+        choice = input(f"{prompt} ").strip()
+        if not choice.isdigit():
+            print("Please enter a valid number.")
+            continue
+        idx = int(choice) - 1
+        if 0 <= idx < len(items):
+            return items[idx]
+        print("Invalid selection.")
+
+
 def load_transactions():
     return load_json_file(TRANSACTIONS_FILE)
 
@@ -1250,19 +1272,11 @@ def add_repayment():
         return
         
     print("\nSelect Active Debt:")
-    for i, d in enumerate(active_debts, start=1):
-        print(f"  {i}. {d['person_name']} | {d['type']} | Remaining: {format_currency(d['remaining_amount'])} | Created: {d['created_date']}")
-        
-    while True:
-        choice = input("Enter the number of the debt: ").strip()
-        if not choice.isdigit():
-            print("Please enter a valid number.")
-            continue
-        idx = int(choice) - 1
-        if 0 <= idx < len(active_debts):
-            selected_debt = active_debts[idx]
-            break
-        print("Invalid selection.")
+    selected_debt = select_from_list(
+        active_debts,
+        "Enter the number of the debt:",
+        lambda d: f"{d['person_name']} | {d['type']} | Remaining: {format_currency(d['remaining_amount'])} | Created: {d['created_date']}"
+    )
         
     accounts = load_accounts()
     if not accounts:
@@ -1369,21 +1383,18 @@ def delete_repayment():
     debts = load_debts()
     
     print("\nSelect Repayment to Delete:")
-    for i, r in enumerate(repayments, start=1):
+    def format_rep(r):
         debt = next((d for d in debts if d["debt_id"] == r["debt_id"]), None)
         d_info = f"Debt {debt['type']} - {debt['person_name']}" if debt else "Unknown Debt"
-        print(f"  {i}. {r['date']} | {format_currency(r['amount'])} | {d_info}")
+        return f"{r['date']} | {format_currency(r['amount'])} | {d_info}"
         
-    while True:
-        choice = input("Enter the number of the repayment: ").strip()
-        if not choice.isdigit():
-            print("Please enter a valid number.")
-            continue
-        idx = int(choice) - 1
-        if 0 <= idx < len(repayments):
-            selected_rep = repayments[idx]
-            break
-        print("Invalid selection.")
+    selected_rep = select_from_list(
+        repayments,
+        "Enter the number of the repayment:",
+        format_rep
+    )
+    if not selected_rep:
+        return
         
     confirm = input(f"Are you sure you want to delete repayment of {format_currency(selected_rep['amount'])}? (y/n): ").strip()
     if confirm.lower() != 'y':
@@ -1414,7 +1425,7 @@ def delete_repayment():
                     account["balance"] = round(account["balance"] + trans_to_delete["amount"], 2)
                 break
 
-    repayments.pop(idx)
+    repayments.remove(selected_rep)
 
     debt = next((d for d in debts if d["debt_id"] == selected_rep["debt_id"]), None)
     if debt:
@@ -1456,19 +1467,13 @@ def delete_debt():
     repayments = load_repayments()
     
     print("\nSelect Debt to Delete:")
-    for i, d in enumerate(debts, start=1):
-        print(f"  {i}. {d['person_name']} | {d['type']} | {d['status']} | Orig: {format_currency(d['original_amount'])}")
-        
-    while True:
-        choice = input("Enter the number of the debt: ").strip()
-        if not choice.isdigit():
-            print("Please enter a valid number.")
-            continue
-        idx = int(choice) - 1
-        if 0 <= idx < len(debts):
-            selected_debt = debts[idx]
-            break
-        print("Invalid selection.")
+    selected_debt = select_from_list(
+        debts,
+        "Enter the number of the debt:",
+        lambda d: f"{d['person_name']} | {d['type']} | {d['status']} | Orig: {format_currency(d['original_amount'])}"
+    )
+    if not selected_debt:
+        return
         
     has_repayments = any(r["debt_id"] == selected_debt["debt_id"] for r in repayments)
     if has_repayments:
@@ -1715,7 +1720,7 @@ def delete_transfer():
     
     sorted_transfers = sorted(transfers, key=lambda t: (t["date"], t["transaction_id"]), reverse=True)
     
-    for i, t in enumerate(sorted_transfers, start=1):
+    def format_transfer(t):
         from_name = get_account_name(t["from_account_id"], accounts)
         to_name = get_account_name(t["to_account_id"], accounts)
         acc_display = f"{from_name} -> {to_name}"
@@ -1723,19 +1728,15 @@ def delete_transfer():
             acc_display = acc_display[:26] + ".."
         notes_display = t.get("notes", "")
         formatted_amount = f"₹{t['amount']:,.2f}"
-        print(f"  {i:<4}. {t['date']:<13}{acc_display:<30}{formatted_amount:>15}  {notes_display}")
+        return f"  {t['date']:<13}{acc_display:<30}{formatted_amount:>15}  {notes_display}"
         
-    while True:
-        choice = input("\nEnter the number of the transfer to delete: ").strip()
-        if not choice.isdigit():
-            print("Please enter a valid number.")
-            continue
-            
-        idx = int(choice) - 1
-        if 0 <= idx < len(sorted_transfers):
-            selected_transfer = sorted_transfers[idx]
-            break
-        print("Invalid selection.")
+    selected_transfer = select_from_list(
+        sorted_transfers,
+        "\nEnter the number of the transfer to delete:",
+        format_transfer
+    )
+    if not selected_transfer:
+        return
         
     from_account = next((a for a in accounts if a["account_id"] == selected_transfer["from_account_id"]), None)
     to_account = next((a for a in accounts if a["account_id"] == selected_transfer["to_account_id"]), None)
