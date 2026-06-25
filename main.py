@@ -69,11 +69,11 @@ def save_accounts(accounts):
         json.dump(accounts, file, indent=4)
 
 
-def generate_account_id(accounts):
-    if len(accounts) == 0:
+def generate_id(items, id_key):
+    if len(items) == 0:
         return 1
 
-    return max(account["account_id"] for account in accounts) + 1
+    return max(item[id_key] for item in items) + 1
 
 
 def load_transactions():
@@ -85,13 +85,6 @@ def save_transactions(transactions):
         json.dump(transactions, file, indent=4)
 
 
-def generate_transaction_id(transactions):
-    if len(transactions) == 0:
-        return 1
-
-    return max(transaction["transaction_id"] for transaction in transactions) + 1
-
-
 def load_categories():
     return load_json_file(CATEGORIES_FILE)
 
@@ -99,13 +92,6 @@ def load_categories():
 def save_categories(categories):
     with open(CATEGORIES_FILE, "w", encoding="utf-8") as file:
         json.dump(categories, file, indent=4)
-
-
-def generate_category_id(categories):
-    if len(categories) == 0:
-        return 1
-
-    return max(category["category_id"] for category in categories) + 1
 
 
 def load_debts():
@@ -117,13 +103,6 @@ def save_debts(debts):
         json.dump(debts, file, indent=4)
 
 
-def generate_debt_id(debts):
-    if len(debts) == 0:
-        return 1
-
-    return max(debt["debt_id"] for debt in debts) + 1
-
-
 def load_repayments():
     return load_json_file(REPAYMENTS_FILE)
 
@@ -131,13 +110,6 @@ def load_repayments():
 def save_repayments(repayments):
     with open(REPAYMENTS_FILE, "w", encoding="utf-8") as file:
         json.dump(repayments, file, indent=4)
-
-
-def generate_repayment_id(repayments):
-    if len(repayments) == 0:
-        return 1
-
-    return max(repayment["repayment_id"] for repayment in repayments) + 1
 
 
 def ensure_default_categories():
@@ -149,7 +121,7 @@ def ensure_default_categories():
         exists = any(c["name"] == name and c["type"] == "Expense" for c in categories)
         if not exists:
             new_category = {
-                "category_id": generate_category_id(categories),
+                "category_id": generate_id(categories, "category_id"),
                 "name": name,
                 "type": "Expense",
                 "is_default": True,
@@ -162,7 +134,7 @@ def ensure_default_categories():
         exists = any(c["name"] == name and c["type"] == "Income" for c in categories)
         if not exists:
             new_category = {
-                "category_id": generate_category_id(categories),
+                "category_id": generate_id(categories, "category_id"),
                 "name": name,
                 "type": "Income",
                 "is_default": True,
@@ -201,7 +173,7 @@ def get_or_create_debt_categories():
             
             if not restored:
                 new_category = {
-                    "category_id": generate_category_id(categories),
+                    "category_id": generate_id(categories, "category_id"),
                     "name": name,
                     "type": type_,
                     "is_default": True,
@@ -337,7 +309,7 @@ def create_category(category_type):
             continue
 
         new_category = {
-            "category_id": generate_category_id(categories),
+            "category_id": generate_id(categories, "category_id"),
             "name": name,
             "type": category_type,
             "is_default": False,
@@ -579,7 +551,7 @@ def add_account():
     balance = get_valid_balance()
 
     new_account = {
-        "account_id": generate_account_id(accounts),
+        "account_id": generate_id(accounts, "account_id"),
         "name": name,
         "account_type": account_type,
         "balance": balance,
@@ -789,7 +761,7 @@ def _add_transaction(transaction_type):
     account["balance"] = new_balance
 
     new_transaction = {
-        "transaction_id": generate_transaction_id(transactions),
+        "transaction_id": generate_id(transactions, "transaction_id"),
         "account_id": account["account_id"],
         "category_id": category["category_id"],
         "type": transaction_type,
@@ -1116,7 +1088,7 @@ def create_debt_transaction(transactions, account, debt_type, amount, person_nam
     
     desc_suffix = f" - {purpose}" if purpose else ""
     new_transaction = {
-        "transaction_id": generate_transaction_id(transactions),
+        "transaction_id": generate_id(transactions, "transaction_id"),
         "account_id": account["account_id"],
         "category_id": category_id,
         "type": trans_type,
@@ -1142,7 +1114,7 @@ def create_repayment_transaction(transactions, account, selected_debt, amount, d
     category_id = next(c["category_id"] for c in categories if c["name"] == category_name and c["type"] == trans_type and not c["is_deleted"])
     
     new_transaction = {
-        "transaction_id": generate_transaction_id(transactions),
+        "transaction_id": generate_id(transactions, "transaction_id"),
         "account_id": account["account_id"],
         "category_id": category_id,
         "type": trans_type,
@@ -1231,7 +1203,7 @@ def add_debt():
     )
     
     new_debt = {
-        "debt_id": generate_debt_id(debts),
+        "debt_id": generate_id(debts, "debt_id"),
         "transaction_id": transaction_id,
         "account_id": account["account_id"],
         "person_name": person_name,
@@ -1387,7 +1359,7 @@ def add_repayment():
     )
 
     new_repayment = {
-        "repayment_id": generate_repayment_id(repayments),
+        "repayment_id": generate_id(repayments, "repayment_id"),
         "debt_id": selected_debt["debt_id"],
         "transaction_id": transaction_id,
         "account_id": account["account_id"],
@@ -1729,7 +1701,7 @@ def transfer_money():
     to_account["balance"] = round(to_account["balance"] + amount, 2)
     
     new_transaction = {
-        "transaction_id": generate_transaction_id(transactions),
+        "transaction_id": generate_id(transactions, "transaction_id"),
         "type": "Transfer",
         "from_account_id": from_account["account_id"],
         "to_account_id": to_account["account_id"],
