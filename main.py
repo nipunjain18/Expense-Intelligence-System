@@ -92,35 +92,38 @@ def load_repayments():
     return load_json_file(REPAYMENTS_FILE)
 
 
+def _ensure_category_exists(categories, name, category_type, is_default=True):
+    for c in categories:
+        if c["name"] == name and c["type"] == category_type and not c["is_deleted"]:
+            return False
+            
+    for c in categories:
+        if c["name"] == name and c["type"] == category_type and c["is_deleted"]:
+            c["is_deleted"] = False
+            return True
+            
+    new_category = {
+        "category_id": generate_id(categories, "category_id"),
+        "name": name,
+        "type": category_type,
+        "is_default": is_default,
+        "is_deleted": False
+    }
+    categories.append(new_category)
+    return True
+
+
 def ensure_default_categories():
     categories = load_categories()
     
     changed = False
 
     for name in DEFAULT_EXPENSE_CATEGORIES:
-        exists = any(c["name"] == name and c["type"] == "Expense" for c in categories)
-        if not exists:
-            new_category = {
-                "category_id": generate_id(categories, "category_id"),
-                "name": name,
-                "type": "Expense",
-                "is_default": True,
-                "is_deleted": False
-            }
-            categories.append(new_category)
+        if _ensure_category_exists(categories, name, "Expense"):
             changed = True
 
     for name in DEFAULT_INCOME_CATEGORIES:
-        exists = any(c["name"] == name and c["type"] == "Income" for c in categories)
-        if not exists:
-            new_category = {
-                "category_id": generate_id(categories, "category_id"),
-                "name": name,
-                "type": "Income",
-                "is_default": True,
-                "is_deleted": False
-            }
-            categories.append(new_category)
+        if _ensure_category_exists(categories, name, "Income"):
             changed = True
 
     if changed:
@@ -141,26 +144,8 @@ def get_or_create_debt_categories():
     
     changed = False
     for name, type_ in debt_categories_to_ensure:
-        exists = any(c["name"] == name and c["type"] == type_ and not c["is_deleted"] for c in categories)
-        if not exists:
-            restored = False
-            for c in categories:
-                if c["name"] == name and c["type"] == type_ and c["is_deleted"]:
-                    c["is_deleted"] = False
-                    restored = True
-                    changed = True
-                    break
-            
-            if not restored:
-                new_category = {
-                    "category_id": generate_id(categories, "category_id"),
-                    "name": name,
-                    "type": type_,
-                    "is_default": True,
-                    "is_deleted": False
-                }
-                categories.append(new_category)
-                changed = True
+        if _ensure_category_exists(categories, name, type_):
+            changed = True
                 
     if changed:
         save_json_file(CATEGORIES_FILE, categories)
